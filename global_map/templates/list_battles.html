@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load tz %}
+
+{% block content %}
+    <h3>Battle by time</h3>
+    <table class="table">
+        <tr>
+            {% for time, items in battle_matrix.items %}{% if items %}
+            <th>{{ time|timezone:"Europe/Moscow"|date:"H:i" }}</th>
+            {% endif %}{% endfor %}
+        </tr>
+        <tr>
+            {% for battles in battle_matrix.values %}{% if battles %}
+                <td>
+                    <ul>{% for battle in battles %}
+                    <li><a href="{{ battle.url }}">{{ battle.server }} {{ battle.province_name }} {{ battle.arena_name }}</a></li>
+                {% endfor %}
+                    </ul>
+                </td>
+            {% endif %}{% endfor %}
+        </tr>
+    </table>
+
+<h3>List of battles:</h3>
+    <table class="table">
+        <tr>
+            <th>Server</th>
+            <th>Arena name</th>
+            <th>Province name</th>
+            <th>Battle time</th>
+            <th>Enemy</th>
+            <th colspan="2">Enemy win% (battle count)</th>
+        </tr>
+    {% for battle in battles %}
+        <tr class="{{ battle.style }}">
+            <td>{{ battle.province.server }}</td>
+            <td>{{ battle.arena_name }}</td>
+            <td><a href="https://ru.wargaming.net/globalmap/#province/{{ battle.province_id }}" target="_blank">
+                {{ battle.province_name }}</a></td>
+            <td>{{ battle.battle_time|timezone:"Europe/Moscow"|date:"r" }}</td>
+            <td>[{{ battle.enemy.tag }}] {{ battle.enemy.name }}</td>
+            <td>{{ battle.enemy.arena_wins_percent }}% ({{ battle.enemy.arena_battles_count }})</td>
+        </tr>
+    {% empty %}
+        <p>No active battles at the moment</p>
+    {% endfor %}
+    </table>
+
+<h3>Planned battles:</h3>
+    <table class="table">
+    <tr>
+        <th>Server</th>
+        <th>Arena name</th>
+        <th>Province name</th>
+        <th>Battle time</th>
+        <th>Attack counter</th>
+        <th>Expected defence time</th>
+        <th>Type</th>
+    </tr>
+    {% for battle in planned_battles %}
+        <tr>
+            <td>{{ battle.province.server }}</td>
+            <td>{{ battle.arena_name }}</td>
+            <td><a href="https://ru.wargaming.net/globalmap/#province/{{ battle.province_id }}">
+                {{ battle.province_name }}</a></td>
+            <td>{{ battle.battle_time|timezone:"Europe/Moscow"|date:"r" }}</td>
+            <td>{{ battle.sum_ca }}</td>
+            <td>{{ battle.expected_battle|timezone:"Europe/Moscow"|date:"r" }}</td>
+            <td>{{ battle.type }}</td>
+        </tr>
+    {% empty %}
+        <p>No planned battles at the moment</p>
+    {% endfor %}
+    </table>
+{% endblock %}
