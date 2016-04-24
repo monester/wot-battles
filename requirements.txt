@@ -1,2 +1,5 @@
 pytz
 django
+PyYAML
+retrying
+git+https://github.com/monester/python-wargaming#egg=wargaming

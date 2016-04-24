@@ -3,11 +3,10 @@ from __future__ import unicode_literals
 from django.db import models
 
 import wargaming
-import json
-# WARGAMING_KEY = '2f9b826b353eb63d993d6f0d1653c5ff' # server
-WARGAMING_KEY = '540da2676c01efaee6c4c59c7a0f0f52' # mobile
-wot = wargaming.WoT(WARGAMING_KEY, base_url='https://api.worldoftanks.ru/wot/')
-wgn = wargaming.WGN(WARGAMING_KEY, base_url='https://api.worldoftanks.ru/wgn/')
+from django.conf import settings
+
+wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wot/')
+wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wgn/')
 
 
 # Create your models here.
@@ -63,5 +62,4 @@ class Province(models.Model):
 
     @classmethod
     def list_all(cls):
-
         pass

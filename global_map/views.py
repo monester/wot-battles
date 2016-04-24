@@ -1,25 +1,34 @@
-# Create your views here.
-import pytz
+import re
 import math
 from datetime import datetime, timedelta
 import json
 from django.views.generic import TemplateView
 from models import Clan
 import urllib2
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
+from django.conf import settings
+from retrying import retry
 
 import wargaming
-# WARGAMING_KEY = '2f9b826b353eb63d993d6f0d1653c5ff' # server
-WARGAMING_KEY = '540da2676c01efaee6c4c59c7a0f0f52' # mobile
-wot = wargaming.WoT(WARGAMING_KEY, base_url='https://api.worldoftanks.ru/wot/')
-wgn = wargaming.WGN(WARGAMING_KEY, base_url='https://api.worldoftanks.ru/wgn/')
 
 
-class Battle(object):
+wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wot/')
+wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wgn/')
+
+
+class Province(object):
     def __init__(self, clan_id, battle_dict, province_dict):
         self._battle = battle_dict
         self._province = province_dict
         self._clan_id = clan_id
+
+        self.province_id = self._province['province_id']
+        self.arena_name = self._province['arena_name']
+        self.province_name = self._province['province_name']
+        self.prime_time = self._province['prime_time']
+        self.prime_datetime = datetime.strptime(self._province['prime_time'], "%H:%M") \
+            .replace(year=2016, second=0, microsecond=0)
+        self.server = self._province['server']
 
         # Parse time
         self._province['battles_start_at'] = \
@@ -39,22 +48,48 @@ class Battle(object):
         return -1
 
     @property
+    def round_times(self):
+        times = {}
+        for battle_time, value in self.battle_times.items():
+            minute = 30 if battle_time.minute >= 30 else 0
+            times[battle_time.replace(minute=minute, second=0, microsecond=0)] = value
+        return times
+
+    @property
+    def attack_type(self):
+        if self._province['owner_clan_id'] == self._clan_id and (
+            self._province['attackers'] or self._province['competitors']
+        ):
+            result = 'Defence'
+        elif self._clan_id in self._province['attackers']:
+            result = 'By land'
+        elif self._clan_id in self._province['competitors']:
+            result = 'Tournament'
+        else:
+            result = 'Unknown'
+        return result
+
+    @property
     def battle_times(self):
         rounds_count = self.rounds_count
         if rounds_count == -1:
-            return []
+            return {}
 
         battles_start_at = self._province['battles_start_at']
         if self._province['owner_clan_id'] == self._clan_id:
-            times = [battles_start_at + timedelta(minutes=30) * rounds_count]
+            times = {battles_start_at + timedelta(minutes=30) * rounds_count: 0}
         else:
-            times = []
+            times = {}
             for i in range(rounds_count + 1):
-                times.append(battles_start_at + timedelta(minutes=30) * i)
+                times[battles_start_at + timedelta(minutes=30) * i] = int(math.pow(2, rounds_count - i - 1))
         return times
 
+    @property
+    def url(self):
+        return "https://ru.wargaming.net/globalmap" + self._province['uri']
+
     def has_battle_at(self, time):
-        for bt in self.battle_times:
+        for bt in self.battle_times.keys():
             # 18:00:00 <= bt <= 18:29:59
             if time <= bt < time + timedelta(minutes=30):
                 return True
@@ -63,7 +98,7 @@ class Battle(object):
     def at(self, time):
         res = self._province.copy()
         res['url'] = "https://ru.wargaming.net/globalmap" + res['uri']
-        res['time'] = time  # TODO: replace with actual time
+        res['time'] = time
         return res
 
     def __repr__(self):
@@ -72,6 +107,18 @@ class Battle(object):
 
 class ListBattles(TemplateView):
     template_name = 'list_battles.html'
+
+    @staticmethod
+    @retry(stop_max_attempt_number=5)
+    def _clanprovinces(**kwargs):
+        """wrapper to retry if WG servers has failed"""
+        return wot.globalmap.clanprovinces(**kwargs)
+
+    @staticmethod
+    @retry(stop_max_attempt_number=5)
+    def _provinces(**kwargs):
+        """wrapper to retry if WG servers has failed"""
+        return wot.globalmap.provinces(**kwargs)
 
     def get_context_data(self, **kwargs):
         context = super(ListBattles, self).get_context_data(**kwargs)
@@ -82,65 +129,115 @@ class ListBattles(TemplateView):
         response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
         data = json.loads(response.read())
 
-        province_list = [battle['province_id']
-                         for battle_type in ['battles', 'planned_battles']
-                         for battle in data[battle_type]]
+        province_list = defaultdict(lambda: [])  # list of all provinces we have any actions, by front
+        owned_provinces = []                     # list of all owned provinces
+        provinces_data = {}                      # provinces data
 
-        owned_provinces = []
-        for own in wot.globalmap.clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]:
-            province_list.append(own['province_id'])
-            owned_provinces.append(own['province_id'])
-
-        provinces = {p['province_id']: p
-            for p in wot.globalmap.provinces(front_id='1604_ru_event_west', language='ru', province_id=province_list)
-        }
-
-        battles = {}
+        # prepare list of provinces to query
         for battle_type in ['battles', 'planned_battles']:
             for battle in data[battle_type]:
-                battles[battle['province_id']] = Battle(clan_id, battle, provinces[battle['province_id']])
+                province_list[battle['front_id']].append(battle['province_id'])
 
-        for own in owned_provinces:
-            if own not in battles:
-                battles[own] = Battle(clan_id, None, provinces[own])
+        # fetch for clan owned provinces
+        for own in self._clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]:
+            front_id = own['front_id']
+            province_list[front_id].append(own['province_id'])
+            owned_provinces.append(own['province_id'])
 
+        # fetch for provinces data
+        for front_id in province_list.keys():
+            plist = list(set(province_list[front_id]))  # make list unique
+            for p in self._provinces(front_id=front_id, province_id=plist):
+                provinces_data[p['province_id']] = p
+
+        # **** Battle section *****
+        provinces = {}
+
+        # fill battles from battles screen on GlobalMap
         for battle_type in ['battles', 'planned_battles']:
-            context[battle_type] = data[battle_type]
-            for battle in context[battle_type]:
-                battle['battle_time'] = datetime.strptime(battle['battle_time'][0:19], '%Y-%m-%d %H:%M:%S')
-                battle['province'] = province = provinces[battle['province_id']]
+            for battle in data[battle_type]:
+                provinces[battle['province_id']] = Province(clan_id, battle, provinces_data[battle['province_id']])
 
-                competitors = battle['province']['competitors']
-                attackers = battle['province']['attackers']
-                battle['sum_ca'] = sum_ca = len(competitors) + len(attackers)
-                if sum_ca > 0:
-                    round_count = int(math.ceil(math.log(sum_ca, 2)))
-                else:
-                    round_count = 0
-                battle['type'] = 'Attack' if battle['province']['owner_clan_id'] != clan_id else 'Defence'
-                if battle['type'] == 'Defence':
-                    if province['status'] == 'STARTED':
-                        battle['expected_battle'] = battle['battle_time']
-                    else:
-                        battle['expected_battle'] = battle['battle_time'] + timedelta(minutes=30) * round_count
+        # fill defences from owned battles
+        for own in owned_provinces:
+            if own not in provinces and (provinces_data[own]['attackers'] or provinces_data[own]['competitors']):
+                provinces[own] = Province(clan_id, None, provinces_data[own])
 
-        # for battle in context['battles']:
-        #     if battle['battle_time'] - datetime.now() < timedelta(minutes=30):
-        #         battle['style'] = 'success'
-        #
-        # for battle in context['battles']:
-        #     if battle['battle_time'] - datetime.now() < timedelta(minutes=30):
-        #         battle['style'] = 'success'
+        # fill attacks by land
+        neighbours_list = defaultdict(lambda: [])
+        for own in owned_provinces:
+            for neighbor in provinces_data[own]['neighbours']:
+                neighbours_list[provinces_data[own]['front_id']].append(neighbor)
 
-        day_start = (datetime.now()-timedelta(hours=10)).replace(hour=16, minute=0, second=0, microsecond=0)
+        neighbours_data = {}
+        for front_id in neighbours_list.keys():
+            plist = list(set(neighbours_list[front_id]))  # make list unique
+            for p in self._provinces(front_id=front_id, province_id=plist):
+                neighbours_data[p['province_id']] = p
+
+        for neighbor, data in neighbours_data.items():
+            if clan_id in data['attackers']:  # attack performed by land
+                provinces[neighbor] = Province(clan_id, None, data)
+
+        start_time = min(set([i.prime_time for i in provinces.values()]))
+        hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
+
+        day_start = (datetime.now()-timedelta(hours=10)) \
+            .replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
         battle_matrix = OrderedDict()
         for i in range(16):
             battle_matrix[day_start + timedelta(minutes=30) * i] = []
 
         for time, battles_list in battle_matrix.items():
-            for battle in battles.values():
+            for battle in provinces.values():
                 if battle.has_battle_at(time):
                     battles_list.append(battle.at(time))
 
         context['battle_matrix'] = battle_matrix
+        context['battle_matrix2'] = BattleMatrix(provinces)
         return context
+
+
+class BattleMatrix(object):
+    def __init__(self, provinces):
+        self._provinces = provinces
+
+    @property
+    def times(self):
+        res = []
+        # print self._provinces
+        for i in self._provinces.values():
+            res.extend(i.round_times.keys())
+        return sorted(set(res))
+
+    @property
+    def table(self):
+        table = defaultdict(lambda: [])
+        for province_id, prov in self._provinces.items():
+            for time in self.times:
+                item_in_row = {
+                    'class': '',
+                    'url': '',
+                    'text': '',
+                }
+                if prov.has_battle_at(time):
+                    round_id = prov.round_times[time]
+                    if round_id == 1:
+                        text = 'Final'
+                    elif round_id == 0:
+                        text = 'Owner'
+                    else:
+                        text = "1/%s" % round_id
+                    data = {
+                        'class': 'btn-default',
+                        'text': text,
+                        'url': prov.url
+                    }
+                    try:
+                        table[prov].append(data)
+                    except KeyError:
+                        table[prov].append('Unknown')
+                else:
+                    table[prov].append(item_in_row)
+
+        return sorted(table.items(), key=lambda k: (k[0].server, k[0].province_id))
