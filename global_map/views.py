@@ -17,8 +17,7 @@ wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', base_url='https://api
 
 
 class Province(object):
-    def __init__(self, clan_id, battle_dict, province_dict):
-        self._battle = battle_dict
+    def __init__(self, clan_id, province_dict):
         self._province = province_dict
         self._clan_id = clan_id
 
@@ -120,18 +119,23 @@ class ListBattles(TemplateView):
         """wrapper to retry if WG servers has failed"""
         return wot.globalmap.provinces(**kwargs)
 
+    @staticmethod
+    @retry(stop_max_attempt_number=5)
+    def _data(clan_id):
+        """wrapper to retry if WG servers has failed"""
+        response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
+        return json.loads(response.read())
+
     def get_context_data(self, **kwargs):
         context = super(ListBattles, self).get_context_data(**kwargs)
         clan_tag = self.request.GET.get('tag', 'SMIRK')
         clan = Clan.get_or_create(clan_tag=clan_tag)
         clan_id = clan.id
-
-        response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
-        data = json.loads(response.read())
-
         province_list = defaultdict(lambda: [])  # list of all provinces we have any actions, by front
         owned_provinces = []                     # list of all owned provinces
         provinces_data = {}                      # provinces data
+
+        data = self._data(clan_id)
 
         # prepare list of provinces to query
         for battle_type in ['battles', 'planned_battles']:
@@ -139,10 +143,12 @@ class ListBattles(TemplateView):
                 province_list[battle['front_id']].append(battle['province_id'])
 
         # fetch for clan owned provinces
-        for own in self._clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]:
-            front_id = own['front_id']
-            province_list[front_id].append(own['province_id'])
-            owned_provinces.append(own['province_id'])
+        clan_provinces = self._clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]
+        if isinstance(clan_provinces, list):
+            for own in clan_provinces:
+                front_id = own['front_id']
+                province_list[front_id].append(own['province_id'])
+                owned_provinces.append(own['province_id'])
 
         # fetch for provinces data
         for front_id in province_list.keys():
@@ -156,12 +162,13 @@ class ListBattles(TemplateView):
         # fill battles from battles screen on GlobalMap
         for battle_type in ['battles', 'planned_battles']:
             for battle in data[battle_type]:
-                provinces[battle['province_id']] = Province(clan_id, battle, provinces_data[battle['province_id']])
+                province_id = battle['province_id']
+                provinces[province_id] = Province(clan_id, provinces_data[province_id])
 
         # fill defences from owned battles
         for own in owned_provinces:
             if own not in provinces and (provinces_data[own]['attackers'] or provinces_data[own]['competitors']):
-                provinces[own] = Province(clan_id, None, provinces_data[own])
+                provinces[own] = Province(clan_id, provinces_data[own])
 
         # fill attacks by land
         neighbours_list = defaultdict(lambda: [])
@@ -177,7 +184,7 @@ class ListBattles(TemplateView):
 
         for neighbor, data in neighbours_data.items():
             if clan_id in data['attackers']:  # attack performed by land
-                provinces[neighbor] = Province(clan_id, None, data)
+                provinces[neighbor] = Province(clan_id, data)
 
         start_time = min(set([i.prime_time for i in provinces.values()]))
         hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
