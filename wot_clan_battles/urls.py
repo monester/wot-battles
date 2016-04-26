@@ -16,9 +16,10 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 
-from global_map.views import ListBattles
+from globalmap.views import ListBattles
 
 urlpatterns = [
-    url(r'^$', ListBattles.as_view()),
+    url(r'^$', ListBattles.as_view(), {'region': 'ru'}),
+    url(r'^(?P<region>asia)/$', ListBattles.as_view()),
     url(r'^admin/', admin.site.urls),
 ]

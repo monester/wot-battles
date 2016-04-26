@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 
 import os
 import yaml
+import wargaming
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'global_map',
+    'globalmap',
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -126,4 +127,17 @@ STATIC_URL = '/static/'
 DATETIME_FORMAT = 'r'
 
 config = yaml.load(open(os.path.join(BASE_DIR, 'config.yaml')).read())
-WARGAMING_KEY = config['WARGAMING_KEY']
+WOT = {}
+WGN = {}
+for region, params in config.items():
+    WOT[region] = wargaming.WoT(
+        params['WARGAMING_KEY'],
+        language=params['language'],
+        region=region,
+    )
+    WGN[region] = wargaming.WGN(
+        params['WARGAMING_KEY'],
+        language=params['language'],
+        region=region,
+    )
+DEFAULT_REGION='ru'

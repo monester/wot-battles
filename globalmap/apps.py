@@ -4,4 +4,4 @@ from django.apps import AppConfig
 
 
 class GlobalMapConfig(AppConfig):
-    name = 'global_map'
+    name = 'globalmap'
