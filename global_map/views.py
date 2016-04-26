@@ -39,7 +39,7 @@ class Province(object):
             return 0
 
         if self._province['landing_type'] == 'tournament':
-            count = len(self._province['competitors'])
+            count = len(self._province['competitors']) + len(self._province['attackers'])
         else:
             count = len(self._province['attackers'])
         if count > 0:
