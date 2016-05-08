@@ -134,6 +134,7 @@ class ListBattles(TemplateView):
         province_list = defaultdict(lambda: [])  # list of all provinces we have any actions, by front
         owned_provinces = []                     # list of all owned provinces
         provinces_data = {}                      # provinces data
+        battle_matrix = OrderedDict()
 
         data = self._data(clan_id)
 
@@ -186,19 +187,19 @@ class ListBattles(TemplateView):
             if clan_id in data['attackers']:  # attack performed by land
                 provinces[neighbor] = Province(clan_id, data)
 
-        start_time = min(set([i.prime_time for i in provinces.values()]))
-        hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
+        if provinces:
+            start_time = min(set([i.prime_time for i in provinces.values()]))
+            hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
 
-        day_start = (datetime.now()-timedelta(hours=10)) \
-            .replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
-        battle_matrix = OrderedDict()
-        for i in range(16):
-            battle_matrix[day_start + timedelta(minutes=30) * i] = []
+            day_start = (datetime.now()-timedelta(hours=10)) \
+                .replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
+            for i in range(16):
+                battle_matrix[day_start + timedelta(minutes=30) * i] = []
 
-        for time, battles_list in battle_matrix.items():
-            for battle in provinces.values():
-                if battle.has_battle_at(time):
-                    battles_list.append(battle.at(time))
+            for time, battles_list in battle_matrix.items():
+                for battle in provinces.values():
+                    if battle.has_battle_at(time):
+                        battles_list.append(battle.at(time))
 
         context['battle_matrix'] = battle_matrix
         context['battle_matrix2'] = BattleMatrix(provinces)
