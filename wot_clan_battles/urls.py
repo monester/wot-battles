@@ -14,12 +14,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 from django.conf.urls import url
-from django.contrib import admin
 
 from globalmap.views import ListBattles
 
 urlpatterns = [
     url(r'^$', ListBattles.as_view(), {'region': 'ru'}),
     url(r'^(?P<region>asia)/$', ListBattles.as_view()),
-    url(r'^admin/', admin.site.urls),
 ]

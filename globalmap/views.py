@@ -2,14 +2,14 @@ import re
 import math
 from datetime import datetime, timedelta
 from django.views.generic import TemplateView
-from models import Clan
+from wgdb.models.wgn import Clan
+from wgdb.models.globalmap import Province
 
 from collections import OrderedDict, defaultdict
 from django.conf import settings
 from retrying import retry
 
 import requests
-from .models import Clan, Province
 
 
 class ListBattles(TemplateView):
@@ -30,13 +30,13 @@ class ListBattles(TemplateView):
         owned_provinces = []                     # list of all owned provinces
         provinces_data = {}                      # provinces data
 
-        wot = settings.WOT[self.region]
-        data = clan.clan_battles()
+        # wot = settings.WOT[self.region]
+        # data = clan.clan_battles()
 
         # prepare list of provinces to query
-        for battle_type in ['battles', 'planned_battles']:
-            for battle in data[battle_type]:
-                province_list[battle['front_id']].append(battle['province_id'])
+        # for battle_type in ['battles', 'planned_battles']:
+        #     for battle in data[battle_type]:
+        #         province_list[battle['front_id']].append(battle['province_id'])
 
         # # fetch for clan owned provinces
         # clan_provinces = wot.globalmap.clanprovinces(clan_id=clan_id)[clan_id]
@@ -54,13 +54,13 @@ class ListBattles(TemplateView):
         #             provinces_data[p['province_id']] = p
 
         # **** Battle section *****
-        provinces = {}
-
-        # fill battles from battles screen on GlobalMap
-        for battle_type in ['battles', 'planned_battles']:
-            for battle in data[battle_type]:
-                province_id = battle['province_id']
-                provinces[province_id] = Province.objects.get(province_id=province_id, region=self.region)
+        # provinces = {}
+        #
+        # # fill battles from battles screen on GlobalMap
+        # for battle_type in ['battles', 'planned_battles']:
+        #     for battle in data[battle_type]:
+        #         province_id = battle['province_id']
+        #         provinces[province_id] = Province.objects.get(province_id=province_id, region=self.region)
 
         # # fill defences from owned battles
         # for own in owned_provinces:
@@ -82,6 +82,8 @@ class ListBattles(TemplateView):
         # for neighbor_id, neighbor_data in neighbours_data.items():
         #     if clan_id in neighbor_data['attackers']:  # attack performed by land
         #         provinces[neighbor_id] = Province(neighbor_data, self.region)
+
+        provinces = clan.clan_provinces()
 
         if provinces:
             start_time = min(set([i.prime_time for i in provinces.values()]))
