@@ -1,0 +1,23 @@
+uwsgi:
+  uid: www-data
+  gid: www-data
+
+  plugin: python
+  # Django-related settings
+  # the base directory (full path)
+  chdir: /var/www/wot-battles
+  # Django's wsgi file
+  module: wot_clan_battles.wsgi:application
+  
+  # process-related settings
+  # master
+  master: true
+  # maximum number of worker processes
+  processes: 10
+  # the socket (use the full path to be safe
+  socket: 127.0.0.1:3333
+  # ... with appropriate permissions - may be needed
+  # chmod-socket    = 664
+  # clear environment on exit
+  vacuum: true
+
