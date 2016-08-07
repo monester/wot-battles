@@ -5,8 +5,8 @@ from django.db import models
 import wargaming
 from django.conf import settings
 
-wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wot/')
-wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', base_url='https://api.worldoftanks.ru/wgn/')
+wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
+wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
 
 
 # Create your models here.
