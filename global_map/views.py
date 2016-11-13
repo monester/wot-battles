@@ -136,7 +136,10 @@ class ListBattles(TemplateView):
         provinces_data = {}                      # provinces data
         battle_matrix = OrderedDict()
 
-        data = self._data(clan_id)
+        try:
+            data = self._data(clan_id)
+        except:
+            data = {'battles': [], 'planned_battles': []}
 
         # prepare list of provinces to query
         for battle_type in ['battles', 'planned_battles']:
