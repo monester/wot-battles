@@ -34,6 +34,10 @@ class Province(object):
             datetime.strptime(self._province['battles_start_at'], '%Y-%m-%dT%H:%M:%S')
 
     @property
+    def bgcolor(self):
+        return 'FFF' if self.prime_datetime.minute == 15 else '6F6'
+
+    @property
     def rounds_count(self):
         if not self._province['landing_type']:
             return 0
@@ -51,6 +55,15 @@ class Province(object):
         times = {}
         for battle_time, value in self.battle_times.items():
             minute = 30 if battle_time.minute >= 30 else 0
+            if 0 <= battle_time.minute < 15:
+                minute = 0
+            elif 15 <= battle_time.minute < 30:
+                minute = 0
+            elif 30 <= battle_time.minute < 45:
+                minute = 30
+            else:
+                minute = 30
+
             times[battle_time.replace(minute=minute, second=0, microsecond=0)] = value
         return times
 
@@ -251,4 +264,4 @@ class BattleMatrix(object):
                 else:
                     table[prov].append(item_in_row)
 
-        return sorted(table.items(), key=lambda k: (k[0].server, k[0].province_id))
+        return sorted(table.items(), key=lambda k: (k[0].prime_datetime.minute==15, k[0].server, k[0].province_id))

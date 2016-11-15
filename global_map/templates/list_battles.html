@@ -14,7 +14,7 @@
         </tr>
 
         {% for province, times in battle_matrix2.table %}
-        <tr>
+        <tr style="background-color: #{{ province.bgcolor }}">
             <td><a href="{{ province.url }}" target="_blank">
                 {{ province.server }} {{ province.province_name }} ({{ province.arena_name }},
                 {{ province.prime_datetime|timezone:"Europe/Moscow"|date:"H:i" }})
