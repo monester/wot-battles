@@ -2,18 +2,40 @@ import re
 import math
 from datetime import datetime, timedelta
 import json
-from django.views.generic import TemplateView
-from models import Clan
+from django.views.generic import TemplateView, View
+from models import Clan, ProvinceTag
 import urllib2
 from collections import OrderedDict, defaultdict
 from django.conf import settings
 from retrying import retry
-
 import wargaming
-
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse, QueryDict
 
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
+
+
+class TagView(View):
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        return super(TagView, self).dispatch(request, *args, **kwargs)
+
+    def post(self, *args, **kwargs):
+        province_id = self.request.POST.get('province_id')
+        tag = self.request.POST.get('tag')
+        date = self.request.POST.get('date')
+        ProvinceTag.objects.create(date=date, province_id=province_id, tag=tag)
+        return JsonResponse({'ok': 'ok'})
+
+    def delete(self, *args, **kwargs):
+        body = QueryDict(self.request.body)
+        province_id = body.get('province_id')
+        tag = body.get('tag')
+        date = body.get('date')
+        ProvinceTag.objects.filter(date=date, tag=tag,
+                                   province_id=province_id).delete()
+        return JsonResponse({'ok': 'ok'})
 
 
 class Province(object):
@@ -27,11 +49,18 @@ class Province(object):
         self.prime_time = self._province['prime_time']
         self.prime_datetime = datetime.strptime(self._province['prime_time'], "%H:%M") \
             .replace(year=2016, second=0, microsecond=0)
+
         self.server = self._province['server']
 
         # Parse time
         self._province['battles_start_at'] = \
             datetime.strptime(self._province['battles_start_at'], '%Y-%m-%dT%H:%M:%S')
+        self.battle_date = self._province['battles_start_at'].date()
+
+    @property
+    def tags(self):
+        tags = ProvinceTag.objects.filter(date=self.battle_date, province_id=self.province_id)
+        return ','.join([i.tag for i in tags])
 
     @property
     def bgcolor(self):

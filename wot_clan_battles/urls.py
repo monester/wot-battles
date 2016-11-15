@@ -15,10 +15,13 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 
-from global_map.views import ListBattles
+from global_map.views import ListBattles, TagView
 
 urlpatterns = [
     url(r'^$', ListBattles.as_view()),
+    url(r'^tag/', TagView.as_view()),
     url(r'^admin/', admin.site.urls),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -52,14 +52,23 @@ class Clan(models.Model):
         return clan_obj
 
 
-class Province(models.Model):
+# class Province(models.Model):
+#     province_id = models.CharField(max_length=255)
+#     province_name = models.CharField(max_length=255)
+#     province_owner = models.ForeignKey(Clan, on_delete=models.SET_NULL, null=True, blank=True)
+#     front_id = models.CharField(max_length=255, default='1604_ru_event_west')
+#
+#     _need_update = []
+#
+#     @classmethod
+#     def list_all(cls):
+#         pass
+
+
+class ProvinceTag(models.Model):
+    date = models.DateField()
+    tag = models.CharField(max_length=255)
     province_id = models.CharField(max_length=255)
-    province_name = models.CharField(max_length=255)
-    province_owner = models.ForeignKey(Clan, on_delete=models.SET_NULL, null=True, blank=True)
-    front_id = models.CharField(max_length=255, default='1604_ru_event_west')
 
-    _need_update = []
-
-    @classmethod
-    def list_all(cls):
-        pass
+    def __repr__(self):
+        return "<ProvinceTag %s: %s@%s>" % (self.date, self.tag, self.province_id)

@@ -18,7 +18,11 @@
             <td><a href="{{ province.url }}" target="_blank">
                 {{ province.server }} {{ province.province_name }} ({{ province.arena_name }},
                 {{ province.prime_datetime|timezone:"Europe/Moscow"|date:"H:i" }})
-            </a></td>
+            </a>
+            <form action="/tag" autocomplete=off>
+            <input id="{{ province.province_id }}" type="text" class="tags" value="{{ province.tags }}" data-role="tagsinput" data-date="{{ province.battle_date|date:"Y-m-d" }}"/>
+            </form>
+            </td>
             <td>{{ province.attack_type }}</td>
             {% for battle in times %}
             <td class="{{ battle.class }}">
