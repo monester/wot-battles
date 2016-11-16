@@ -1,4 +1,5 @@
 import re
+import os
 import math
 from datetime import datetime, timedelta
 import json
@@ -148,25 +149,46 @@ class Province(object):
 
 class ListBattles(TemplateView):
     template_name = 'list_battles.html'
+    cached_time = None
 
     @staticmethod
     @retry(stop_max_attempt_number=5)
     def _clanprovinces(**kwargs):
         """wrapper to retry if WG servers has failed"""
-        return wot.globalmap.clanprovinces(**kwargs)
+        clan_id = kwargs['clan_id']
+        path = 'cache/clan_provinces.json'
+        if clan_id == 35039 and os.path.exists(path):
+            with open(path) as f:
+                clan_provinces = json.loads(f.read())
+        else:
+            clan_provinces = wot.globalmap.clanprovinces(**kwargs)
+        return clan_provinces
 
-    @staticmethod
     @retry(stop_max_attempt_number=5)
-    def _provinces(**kwargs):
+    def _provinces(self, **kwargs):
         """wrapper to retry if WG servers has failed"""
-        return wot.globalmap.provinces(**kwargs)
+        clan_id = kwargs.pop('clan_id')
+        path = 'cache/provinces-%s.json' % kwargs['front_id']
+        if clan_id == 35039 and os.path.exists(path):
+            self.cached_time = int((datetime.now() - datetime.fromtimestamp(os.stat(path).st_ctime)).total_seconds() / 60)
+            with open(path) as f:
+                provinces = json.load(f)
+        else:
+            provinces = wot.globalmap.provinces(**kwargs)
+        return provinces
 
     @staticmethod
     @retry(stop_max_attempt_number=5)
     def _data(clan_id):
         """wrapper to retry if WG servers has failed"""
-        response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
-        return json.loads(response.read())
+        path = 'cache/data.json'
+        if clan_id == 35039 and os.path.exists(path):
+            with open(path) as f:
+                data = json.load(f)
+        else:
+            response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
+            data = json.loads(response.read())
+        return data
 
     def get_context_data(self, **kwargs):
         context = super(ListBattles, self).get_context_data(**kwargs)
@@ -199,7 +221,7 @@ class ListBattles(TemplateView):
         # fetch for provinces data
         for front_id in province_list.keys():
             plist = list(set(province_list[front_id]))  # make list unique
-            for p in self._provinces(front_id=front_id, province_id=plist):
+            for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
                 provinces_data[p['province_id']] = p
 
         # **** Battle section *****
@@ -225,7 +247,7 @@ class ListBattles(TemplateView):
         neighbours_data = {}
         for front_id in neighbours_list.keys():
             plist = list(set(neighbours_list[front_id]))  # make list unique
-            for p in self._provinces(front_id=front_id, province_id=plist):
+            for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
                 neighbours_data[p['province_id']] = p
 
         for neighbor, data in neighbours_data.items():
@@ -248,6 +270,7 @@ class ListBattles(TemplateView):
 
         context['battle_matrix'] = battle_matrix
         context['battle_matrix2'] = BattleMatrix(provinces)
+        context['cached_time'] = self.cached_time
         return context
 
 

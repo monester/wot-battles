@@ -2,7 +2,7 @@
 {% load tz %}
 
 {% block content %}
-    <h3>Battle by time</h3>
+    <h3>Battle by time{% if cached_time != None %} (Updated {{ cached_time }} minutes ago){% endif %}</h3>
 
     <table class="table">
         <tr>
