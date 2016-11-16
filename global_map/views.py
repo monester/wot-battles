@@ -4,7 +4,7 @@ import math
 from datetime import datetime, timedelta
 import json
 from django.views.generic import TemplateView, View
-from models import Clan, ProvinceTag
+from global_map.models import Clan, ProvinceTag
 import urllib2
 from collections import OrderedDict, defaultdict
 from django.conf import settings
@@ -50,6 +50,8 @@ class Province(object):
         self.prime_time = self._province['prime_time']
         self.prime_datetime = datetime.strptime(self._province['prime_time'], "%H:%M") \
             .replace(year=2016, second=0, microsecond=0)
+        self.owner_clan = Clan.get_or_create(clan_id=self._province['owner_clan_id']) \
+            if self._province['owner_clan_id'] else None
 
         self.server = self._province['server']
 
@@ -57,6 +59,9 @@ class Province(object):
         self._province['battles_start_at'] = \
             datetime.strptime(self._province['battles_start_at'], '%Y-%m-%dT%H:%M:%S')
         self.battle_date = self._province['battles_start_at'].date()
+
+        for battle in self._province['active_battles']:
+            battle['start_at'] = datetime.strptime(battle['start_at'], '%Y-%m-%dT%H:%M:%S')
 
     @property
     def tags(self):
@@ -96,6 +101,16 @@ class Province(object):
 
             times[battle_time.replace(minute=minute, second=0, microsecond=0)] = value
         return times
+
+    def get_enemy_for_time(self, time):
+        clan_id = self._clan_id
+        for battle in self._province['active_battles']:
+            if time <= battle['start_at'] < time + timedelta(minutes=30):
+                if battle['clan_a']['clan_id'] == clan_id:
+                    return Clan.get_or_create(clan_id=battle['clan_b']['clan_id'])
+                if battle['clan_b']['clan_id'] == clan_id:
+                    return Clan.get_or_create(clan_id=battle['clan_a']['clan_id'])
+        return None
 
     @property
     def attack_type(self):
@@ -307,8 +322,11 @@ class BattleMatrix(object):
                     data = {
                         'class': 'btn-default',
                         'text': text,
-                        'url': prov.url
+                        'url': prov.url,
+                        'enemy': prov.get_enemy_for_time(time),
                     }
+                    if text == 'Owner':
+                        data['enemy'] = prov.owner_clan
                     try:
                         table[prov].append(data)
                     except KeyError:

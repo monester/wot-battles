@@ -26,7 +26,7 @@
             <td>{{ province.attack_type }}</td>
             {% for battle in times %}
             <td class="{{ battle.class }}">
-                <a href="{{ battle.url }}" target="_blank">{{ battle.text }}</a>
+                <a href="{{ battle.url }}" target="_blank">{{ battle.text }}{% if battle.enemy %}<br />{{ battle.enemy.tag }}{% endif %}</a>
             </td>
             {% endfor %}
         </tr>

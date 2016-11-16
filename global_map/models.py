@@ -19,7 +19,6 @@ class Clan(models.Model):
 
     @classmethod
     def get_or_create(cls, clan_id=None, clan_tag=None):
-        clan_tag = clan_tag.upper()
         if clan_id and not isinstance(clan_id, str):
             clan_id = str(clan_id)
 
@@ -34,6 +33,7 @@ class Clan(models.Model):
                 clan_obj.title = info[clan_id]['name']
                 clan_obj.save()
         elif clan_tag:
+            clan_tag = clan_tag.upper()
             try:
                 clan_obj = cls.objects.get(tag=clan_tag)
             except Exception:
