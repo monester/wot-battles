@@ -390,7 +390,12 @@ class ListBattlesJson(View):
         for assault in assaults:
             times.extend(assault.planned_times)
 
+        assaults = [assault.as_clan_json(clan) for assault in assaults]
+
         return JsonResponse({
             'time_range': [min(times), max(times)],
-            'assaults': [assault.as_clan_json(clan) for assault in assaults],
+            'assaults': sorted(
+                assaults,
+                key=lambda v: (v['province_info']['prime_time'].minute == 15, v['province_info']['prime_time'])
+            ),
         })
