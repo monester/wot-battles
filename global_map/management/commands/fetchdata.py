@@ -40,6 +40,7 @@ def update_province(front_id, province_data):
             'current_owner': province_owner,
             'prime_time': province.prime_time,
             'arena_id': province.arena_id,
+            'landing_type': p['landing_type'],
             'round_number': p['round_number'],
         })[0]
         if set(assault.clans.all()) != clans:

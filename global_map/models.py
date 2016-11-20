@@ -72,6 +72,7 @@ class Clan(models.Model):
 
     def as_json(self):
         return {
+            'clan_id': self.pk,
             'tag': self.tag,
             'name': self.title,
             'elo_6': self.elo_6,
@@ -114,6 +115,7 @@ class ProvinceAssault(models.Model):
     prime_time = models.TimeField()
     arena_id = models.CharField(max_length=255)
     round_number = models.IntegerField()
+    landing_type = models.CharField(max_length=255, null=True)
 
     def __repr__(self):
         return '<ProvinceAssault: %s owned by %s' % (
@@ -125,27 +127,38 @@ class ProvinceAssault(models.Model):
 
     @cached_property
     def planned_times(self):
-        res = []
-        return [
+        if datetime.now(tz=pytz.UTC) > self.datetime:
+            round_number = self.round_number
+        else:
+            round_number = 0  # Bug-Fix: WGAPI return round number from previous day
+        total_rounds = round_number + int(math.ceil(math.log(len(self.clans.all()), 2)))
+        times = [
             self.datetime + timedelta(minutes=30) * i
-            for i in range(0, self.round_number + int(math.ceil(math.log(len(self.clans.all()), 2))))
+            for i in range(0, total_rounds)
         ]
+        if self.current_owner:
+            times.append(self.datetime + timedelta(minutes=30) * total_rounds)
+        return times
 
     def clan_battles(self, clan):
-        times = self.planned_times  # {time: Battle, ... }
+        max_rounds = len(self.planned_times)
         existing_battles = {b.round_datetime: b for b in self.battles.filter(Q(clan_a=clan) | Q(clan_b=clan))}
         res = []
-        for i in range(len(self.planned_times)):
+        for i in range(max_rounds):
             time = self.planned_times[i]
             if time in existing_battles:
                 res.append(existing_battles[time])
             else:
-                res.append(ProvinceBattle(
+                pb = ProvinceBattle(
                     assault=self,
                     province=self.province,
                     arena_id=self.arena_id,
                     round=i + 1,
-                ))
+                )
+                if i == max_rounds - 1 and self.current_owner:
+                    pb.clan_a = self.current_owner
+                    pb.clan_b = clan
+                res.append(pb)
         return res
 
     @cached_property

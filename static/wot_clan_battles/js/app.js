@@ -14,35 +14,6 @@ $('input').on('itemAdded', function(event) {
         }
     });
 });
-// $(function () {
-// var timetable = new Timetable();
-// timetable.setScope(18, 3);
-// timetable.addLocations(['Silent Disco', 'Nile', 'Len Room', 'Maas Room']);
-// timetable.addEvent('1/8\nok', 'Nile', new Date(2015,7,17,19,0), new Date(2015,7,17,19,30));
-// timetable.addEvent('1/4', 'Nile', new Date(2015,7,17,19,30), new Date(2015,7,17,20,0));
-// timetable.addEvent('1/2', 'Nile', new Date(2015,7,17,20,0), new Date(2015,7,17,20,30));
-// timetable.addEvent('Final', 'Nile', new Date(2015,7,17,20,30), new Date(2015,7,17,21,0));
-// timetable.addEvent('Owner', 'Nile', new Date(2015,7,17,21,0), new Date(2015,7,17,21,30));
-// var renderer = new Timetable.Renderer(timetable);
-// renderer.draw('.timetable'); // any css selector
-// });
-
-
-// $(function () {
-//     times = $('.timetable-times table');
-//
-//     for(i=0; i<5; i++) {
-//         newtr =
-//         newrow = $( "<td class='timetable-row'></td>" );
-//         newrow.css('padding-left', 150 * i + 'px'  );
-//         for(j=0; j<5; j++) {
-//             time = $( "<div class='timetable-time'>some time</div>" );
-//             newrow.append(time)
-//         }
-//         times.append($("<tr></tr>").append(newrow));
-//     }
-// });
-
 
 Date.prototype.addMinutes = function (min) {
     this.setTime(this.getTime() + (min*60*1000));
@@ -53,19 +24,28 @@ Date.prototype.shortTime = function () {
     return this.toTimeString().substr(0,8);
 };
 
-$.get('/battles/', function (data) {
+$.get('/battles/', {
+    clan_id: $('.timetable').data('clan-id')
+}, function (data) {
     var time_width = $('.timetable-time').outerWidth();
     var start_date = new Date(data['time_range'][0]);
     var end_date = new Date(data['time_range'][1]);
     var assaults = data['assaults'];
+    var clan_id = $('.timetable').data('clan-id');
 
     // templates
-    var time_template = "<div class='timetable-time'><span style='float: right'>{{ time }}</span>" +
-        "<br/>{{ clan_a }} VS {{ clan_b }}</div>";
+    var time_template;
+    var time_template_clan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span>" +
+        "<br/>{{title}}: <a href='http://ru.wargaming.net/clans/wot/{{clan.clan_id}}/'>{{ clan.tag }}</a></div>";
+    var time_template_noclan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span>" +
+        "<br/>{{title}}: planned</div>";
     var province_tmpl = "<div class='timetable-province'><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
-        "{{server}} | {{ name }} | {{ arena_name }}</a><p style='width: 300px; white-space: normal'>{{#clans}}{{tag}}, {{/clans}}</p></div>";
+        "{{server}} | {{ name }} | {{ arena_name }}</a><p style='width: 400px; white-space: normal'>"+
+        "{{#clans}}<a href='http://ru.wargaming.net/clans/wot/{{clan_id}}/'>{{tag}}</a> {{/clans}}</p></div>";
 
-    Mustache.parse(time_template);
+    Mustache.parse(time_template_clan);
+    Mustache.parse(time_template_noclan);
+    Mustache.parse(province_tmpl);
 
     // cleanup table
     $('.timetable-times table tr').remove();
@@ -76,7 +56,7 @@ $.get('/battles/', function (data) {
     var provinces = $('.timetable-provinces');
     var newrow = $( "<td class='timetable-row'></td>" );
     for(var time=new Date(start_date); time <= end_date; time=time.addMinutes(30)) {
-        newrow.append("<div class='timetable-time'>" + time.shortTime() + "</div>");
+        newrow.append("<div class='timetable-time'>" + time.shortTime().substr(0, 5) + "</div>");
     }
     table.append($("<tr></tr>").append(newrow));
 
@@ -99,22 +79,36 @@ $.get('/battles/', function (data) {
         newrow = $("<td class='timetable-row'></td>");
         newrow.css("padding-left", padding);
 
-        for(t in battles) {
+        var total_battles = battles.length;
+        for(var t in battles) {
             var battle = battles[t];
             if(battle['real_start_at']) {
                 time = new Date(battle['real_start_at']);
             } else {
                 time = new Date(battle['planned_start_at']);
             }
-            clan_a_tag = clan_b_tag = 'None';
+            var clan = {tag: ''};
             if(battle['clan_a'] && battle['clan_b']) {
-                clan_a_tag = battle['clan_a']['tag'];
-                clan_b_tag = battle['clan_b']['tag'];
+                time_template = time_template_clan;
+                if(battle['clan_a']['clan_id'] == clan_id) {
+                    clan = battle['clan_b'];
+                } else {
+                    clan = battle['clan_a'];
+                }
+            } else {
+                time_template = time_template_noclan;
             }
-            console.log({clan_a: clan_a_tag, clan_b: clan_b_tag, time: time});
+            var title;
+            if(total_battles - t > 2) {
+                title = "1/" + Math.pow(2, total_battles - t - 2);
+            } else if(total_battles - t == 2) {
+                title = "Final";
+            } else {
+                title = "Owner";
+            }
             newrow.append(Mustache.render(time_template, {
-                clan_a: clan_a_tag,
-                clan_b: clan_b_tag,
+                title: title,
+                clan: clan,
                 time: time.shortTime()
             }));
         }

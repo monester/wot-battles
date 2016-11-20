@@ -31,13 +31,13 @@
 .timetable-provinces {
     padding-top: 32px;
     display: block;
-    width: 300px;
+    width: 400px;
     float: left;
 }
 
 .timetable-times {
     overflow-x: scroll;
-    width: calc(100% - 300px);
+    width: calc(100% - 400px);
 }
 
 .timetable-times table {
