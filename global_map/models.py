@@ -130,8 +130,8 @@ class ProvinceAssault(models.Model):
         if datetime.now(tz=pytz.UTC) > self.datetime:
             round_number = self.round_number
         else:
-            round_number = 0  # Bug-Fix: WGAPI return round number from previous day
-        total_rounds = round_number + int(math.ceil(math.log(len(self.clans.all()), 2)))
+            round_number = 1  # Bug-Fix: WGAPI return round number from previous day
+        total_rounds = round_number + int(math.ceil(math.log(len(self.clans.all()), 2))) - 1
         times = [
             self.datetime + timedelta(minutes=30) * i
             for i in range(0, total_rounds)
