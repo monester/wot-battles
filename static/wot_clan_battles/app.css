@@ -1,0 +1,85 @@
+.row-prov {
+    width: 250px;
+    border-right: 1px solid #000000;
+    display: inline-block;
+}
+
+.timeline-header {
+    white-space: nowrap;
+}
+
+.timeline-times {
+    white-space: nowrap; /*Prevents Wrapping*/
+    width: 70%;
+    overflow-x: scroll;
+    display: inline-block;
+}
+
+.timeline-single-time {
+    width: 150px;
+    height: 60px;
+    display: inline-block;
+    /*border: 1px solid #000;*/
+    border-collapse: collapse;
+}
+
+.timetable {
+    width: 100%;
+    white-space: nowrap !important;
+}
+
+.timetable-provinces {
+    padding-top: 32px;
+    display: block;
+    width: 300px;
+    float: left;
+}
+
+.timetable-times {
+    overflow-x: scroll;
+    width: calc(100% - 300px);
+}
+
+.timetable-times table {
+    background-image: linear-gradient(to right, #ccc, transparent 1px);
+    background-size: 150px;
+}
+
+.timetable-row {
+    border-top: 1px solid #ccc;
+    white-space: nowrap;
+    /*height: 60px;*/
+}
+
+.timetable-row:first-child {
+    height: 30px;
+}
+
+.timetable-row .timetable-time:first-child {
+    border-left: 1px solid #ccc;
+}
+
+tr:first-child .timetable-row .timetable-time {
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px;
+    height: 30px;
+}
+
+.timetable-time {
+    width: 150px;
+    height: 60px;
+    display: inline-block;
+    border-right: 1px solid #ccc;
+    background-image: linear-gradient(to bottom,#fff 0,#e0e0e0 100%);
+}
+
+.timetable-province {
+    height: 61px;
+    overflow: hidden;
+    border-bottom:1px solid #ccc;
+}
+
+.timetable-province:first-child {
+    border-top:1px solid #ccc;
+}

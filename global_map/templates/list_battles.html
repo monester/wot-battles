@@ -2,53 +2,18 @@
 {% load tz %}
 
 {% block content %}
-    <h3>Battle by time{% if cached_time != None %} (Updated {{ cached_time }} minutes ago){% endif %}</h3>
+    <h3>Battles for clan SMIRK</h3>
 
-    <table class="table">
-        <tr>
-            <th>Province name</th>
-            <th>Attack type</th>
-            {% for time in battle_matrix2.times %}
-            <th>{{ time|timezone:"Europe/Moscow"|date:"H:i" }}</th>
-            {% endfor %}
-        </tr>
-
-        {% for province, times in battle_matrix2.table %}
-        <tr style="background-color: #{{ province.bgcolor }}">
-            <td><a href="{{ province.url }}" target="_blank">
-                {{ province.server }} {{ province.province_name }} ({{ province.arena_name }},
-                {{ province.prime_datetime|timezone:"Europe/Moscow"|date:"H:i" }})
-            </a>
-            <form action="/tag" autocomplete=off>
-            <input id="{{ province.province_id }}" type="text" class="tags" value="{{ province.tags }}" data-role="tagsinput" data-date="{{ province.battle_date|date:"Y-m-d" }}"/>
-            </form>
-            </td>
-            <td>{{ province.attack_type }}</td>
-            {% for battle in times %}
-            <td class="{{ battle.class }}">
-                <a href="{{ battle.url }}" target="_blank">{{ battle.text }}{% if battle.enemy %}<br />{{ battle.enemy.tag }}{% endif %}</a>
-            </td>
-            {% endfor %}
-        </tr>
-        {% endfor %}
-    </table>
-
-
-    <table class="table">
-        <tr>
-            {% for time, items in battle_matrix.items %}{% if items %}
-            <th>{{ time|timezone:"Europe/Moscow"|date:"H:i" }}</th>
-            {% endif %}{% endfor %}
-        </tr>
-        <tr>
-            {% for battles in battle_matrix.values %}{% if battles %}
-                <td>
-                    <ul>{% for battle in battles %}
-                    <li><a href="{{ battle.url }}">{{ battle.server }} {{ battle.province_name }} {{ battle.arena_name }}</a></li>
-                {% endfor %}
-                    </ul>
+    <div class="timetable">
+        <div class="timetable-provinces">
+            <div class="timetable-province"><a href="#">RU2 Борисоглебск</a></div>
+        </div>
+        <div class="timetable-times"><table>
+            <tr>
+                <td class="timetable-row">
+                    <div class="timetable-time">14:00</div>
                 </td>
-            {% endif %}{% endfor %}
-        </tr>
-    </table>
+            </tr></table>
+        </div>
+    </div>
 {% endblock %}

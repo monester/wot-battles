@@ -1,10 +1,11 @@
 import re
 import os
 import math
+import pytz
 from datetime import datetime, timedelta
 import json
 from django.views.generic import TemplateView, View
-from global_map.models import Clan, ProvinceTag
+from global_map.models import Clan, ProvinceTag, ProvinceAssault, ProvinceBattle
 import urllib2
 from collections import OrderedDict, defaultdict
 from django.conf import settings
@@ -12,6 +13,7 @@ from retrying import retry
 import wargaming
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, QueryDict
+from django.db.models import Count
 
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
@@ -209,83 +211,84 @@ class ListBattles(TemplateView):
         context = super(ListBattles, self).get_context_data(**kwargs)
         clan_tag = self.request.GET.get('tag', 'SMIRK')
         clan = Clan.get_or_create(clan_tag=clan_tag)
-        clan_id = clan.id
-        province_list = defaultdict(lambda: [])  # list of all provinces we have any actions, by front
-        owned_provinces = []                     # list of all owned provinces
-        provinces_data = {}                      # provinces data
-        battle_matrix = OrderedDict()
-
-        try:
-            data = self._data(clan_id)
-        except:
-            data = {'battles': [], 'planned_battles': []}
-
-        # prepare list of provinces to query
-        for battle_type in ['battles', 'planned_battles']:
-            for battle in data[battle_type]:
-                province_list[battle['front_id']].append(battle['province_id'])
-
-        # fetch for clan owned provinces
-        clan_provinces = self._clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]
-        if isinstance(clan_provinces, list):
-            for own in clan_provinces:
-                front_id = own['front_id']
-                province_list[front_id].append(own['province_id'])
-                owned_provinces.append(own['province_id'])
-
-        # fetch for provinces data
-        for front_id in province_list.keys():
-            plist = list(set(province_list[front_id]))  # make list unique
-            for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
-                provinces_data[p['province_id']] = p
-
-        # **** Battle section *****
-        provinces = {}
-
-        # fill battles from battles screen on GlobalMap
-        for battle_type in ['battles', 'planned_battles']:
-            for battle in data[battle_type]:
-                province_id = battle['province_id']
-                provinces[province_id] = Province(clan_id, provinces_data[province_id])
-
-        # fill defences from owned battles
-        for own in owned_provinces:
-            if own not in provinces and (provinces_data[own]['attackers'] or provinces_data[own]['competitors']):
-                provinces[own] = Province(clan_id, provinces_data[own])
-
-        # fill attacks by land
-        neighbours_list = defaultdict(lambda: [])
-        for own in owned_provinces:
-            for neighbor in provinces_data[own]['neighbours']:
-                neighbours_list[provinces_data[own]['front_id']].append(neighbor)
-
-        neighbours_data = {}
-        for front_id in neighbours_list.keys():
-            plist = list(set(neighbours_list[front_id]))  # make list unique
-            for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
-                neighbours_data[p['province_id']] = p
-
-        for neighbor, data in neighbours_data.items():
-            if clan_id in data['attackers']:  # attack performed by land
-                provinces[neighbor] = Province(clan_id, data)
-
-        if provinces:
-            start_time = min(set([i.prime_time for i in provinces.values()]))
-            hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
-
-            day_start = (datetime.now()-timedelta(hours=10)) \
-                .replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
-            for i in range(16):
-                battle_matrix[day_start + timedelta(minutes=30) * i] = []
-
-            for time, battles_list in battle_matrix.items():
-                for battle in provinces.values():
-                    if battle.has_battle_at(time):
-                        battles_list.append(battle.at(time))
-
-        context['battle_matrix'] = battle_matrix
-        context['battle_matrix2'] = BattleMatrix(provinces)
-        context['cached_time'] = self.cached_time
+        # clan_id = clan.id
+        # province_list = defaultdict(lambda: [])  # list of all provinces we have any actions, by front
+        # owned_provinces = []                     # list of all owned provinces
+        # provinces_data = {}                      # provinces data
+        # battle_matrix = OrderedDict()
+        #
+        # try:
+        #     data = self._data(clan_id)
+        # except:
+        #     data = {'battles': [], 'planned_battles': []}
+        #
+        # # prepare list of provinces to query
+        # for battle_type in ['battles', 'planned_battles']:
+        #     for battle in data[battle_type]:
+        #         province_list[battle['front_id']].append(battle['province_id'])
+        #
+        # # fetch for clan owned provinces
+        # clan_provinces = self._clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]
+        # if isinstance(clan_provinces, list):
+        #     for own in clan_provinces:
+        #         front_id = own['front_id']
+        #         province_list[front_id].append(own['province_id'])
+        #         owned_provinces.append(own['province_id'])
+        #
+        # # fetch for provinces data
+        # for front_id in province_list.keys():
+        #     plist = list(set(province_list[front_id]))  # make list unique
+        #     for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
+        #         provinces_data[p['province_id']] = p
+        #
+        # # **** Battle section *****
+        # provinces = {}
+        #
+        # # fill battles from battles screen on GlobalMap
+        # for battle_type in ['battles', 'planned_battles']:
+        #     for battle in data[battle_type]:
+        #         province_id = battle['province_id']
+        #         provinces[province_id] = Province(clan_id, provinces_data[province_id])
+        #
+        # # fill defences from owned battles
+        # for own in owned_provinces:
+        #     if own not in provinces and (provinces_data[own]['attackers'] or provinces_data[own]['competitors']):
+        #         provinces[own] = Province(clan_id, provinces_data[own])
+        #
+        # # fill attacks by land
+        # neighbours_list = defaultdict(lambda: [])
+        # for own in owned_provinces:
+        #     for neighbor in provinces_data[own]['neighbours']:
+        #         neighbours_list[provinces_data[own]['front_id']].append(neighbor)
+        #
+        # neighbours_data = {}
+        # for front_id in neighbours_list.keys():
+        #     plist = list(set(neighbours_list[front_id]))  # make list unique
+        #     for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
+        #         neighbours_data[p['province_id']] = p
+        #
+        # for neighbor, data in neighbours_data.items():
+        #     if clan_id in data['attackers']:  # attack performed by land
+        #         provinces[neighbor] = Province(clan_id, data)
+        #
+        # if provinces:
+        #     start_time = min(set([i.prime_time for i in provinces.values()]))
+        #     hour, minute = re.match('(\d{2}):(\d{2})', start_time).groups()
+        #
+        #     day_start = (datetime.now()-timedelta(hours=10)) \
+        #         .replace(hour=int(hour), minute=int(minute), second=0, microsecond=0)
+        #     for i in range(16):
+        #         battle_matrix[day_start + timedelta(minutes=30) * i] = []
+        #
+        #     for time, battles_list in battle_matrix.items():
+        #         for battle in provinces.values():
+        #             if battle.has_battle_at(time):
+        #                 battles_list.append(battle.at(time))
+        #
+        # context['battle_matrix'] = battle_matrix
+        # context['battle_matrix2'] = BattleMatrix(provinces)
+        context['attacks'], context['all_times'], context['battle_matrix3'] = table2()
+        # context['cached_time'] = self.cached_time
         return context
 
 
@@ -334,4 +337,60 @@ class BattleMatrix(object):
                 else:
                     table[prov].append(item_in_row)
 
-        return sorted(table.items(), key=lambda k: (k[0].prime_datetime.minute==15, k[0].server, k[0].province_id))
+        return sorted(table.items(), key=lambda k: (k[0].prime_datetime.minute == 15, k[0].server, k[0].province_id))
+
+
+def table2():
+    # TODO: possible bug if battles after 3 AM MSK time
+    today = datetime.now(tz=pytz.UTC)
+
+    clan = Clan.objects.get(pk=35039)
+    attacks = ProvinceAssault.objects.annotate(clans_count=Count('clans')).filter(
+        clans_count__gt=0, clans=clan, date__gte=today.date())
+
+    min_time = today.replace(second=0, microsecond=0) - timedelta(minutes=today.minute % 30)
+    table = []  # [attacks, {time: battle, time: battle, ...}]
+
+    all_times = []
+    # for attack in attacks:
+    #         table.append([attack, attack.planned_times])
+    #         all_times.extend(attack.planned_times.keys())
+
+    all_times = [time for time in all_times]
+    all_times = sorted(list(set(all_times)))
+
+    return attacks, all_times, table
+
+
+class ListBattlesJson(View):
+    def get(self, *args, **kwargs):
+        # dt = datetime.now().replace(second=0, microsecond=0, tzinfo=pytz.UTC)
+        #
+        # battles = OrderedDict([
+        #     ('province', [(dt.replace(hour=13, minute=30) + timedelta(minutes=30)*i).isoformat() for i in range(6)]),
+        #     ('province2', [(dt.replace(hour=12, minute=30) + timedelta(minutes=30)*i).isoformat() for i in range(6)]),
+        #     ('province3', [(dt.replace(hour=16, minute=30) + timedelta(minutes=30)*i).isoformat() for i in range(6)]),
+        # ])
+
+        # assault.as_clan_json(clan)
+
+        # {
+        #   'time_range': [ '2016-10-11T22:00:00', '2016-11-11T19:00:00'],
+        #   'assaults': [{
+        #     'province_info': {province_data},
+        #     'clans': [{clan_info}, ...],
+        #     'battles': [{battle_info}, {...}, .... ],
+        #   }, ... ],
+        # }
+
+        clan = Clan.objects.get(pk=35039)
+        assaults = ProvinceAssault.objects.filter(date=datetime.now().date(), clans=clan)
+
+        times = []
+        for assault in assaults:
+            times.extend(assault.planned_times)
+
+        return JsonResponse({
+            'time_range': [min(times), max(times)],
+            'assaults': [assault.as_clan_json(clan) for assault in assaults],
+        })
