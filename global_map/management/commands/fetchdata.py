@@ -169,9 +169,6 @@ def update_clan(clan_id):
                 # ]))
 
                 # On success clear clans in ProvinceAssault
-                for p in provinces_set:
-                    if p in existing_assaults:
-                        existing_assaults[p].clans.clear()
             except RequestError as e:
                 logger.error("Import error wot.globalmap.provinces returned %s (%s), skip",
                              e.code, e.message)
@@ -212,5 +209,10 @@ class Command(BaseCommand):
     help = 'Save map to cache'
 
     def handle(self, *args, **options):
+        from time import time
+        start = time()
+        logger.info("Starting import at %s" % datetime.now(tz=pytz.UTC))
         clan_id = 35039  # SMIRK
         update_clan(clan_id)
+        logger.info("Finished import at %s, seconds elapsed %s",
+                    datetime.now(tz=pytz.UTC), time()-start)
