@@ -96,8 +96,10 @@ class TournamentInfo(dict):
     def clans_info(self):
         clans = {}
         for battle in self['battles']:
-            clans[battle['first_competitor']['id']] = battle['first_competitor']
-            clans[battle['second_competitor']['id']] = battle['second_competitor']
+            if 'first_competitor' in battle:
+                clans[battle['first_competitor']['id']] = battle['first_competitor']
+            if 'second_competitor' in battle:
+                clans[battle['second_competitor']['id']] = battle['second_competitor']
         for clan in self['pretenders'] or []:
             clans[clan['id']] = clan
         return clans
@@ -167,8 +169,6 @@ def update_clan(clan_id):
                 #         'uri',
                 #         'active_battles',
                 # ]))
-
-                # On success clear clans in ProvinceAssault
             except RequestError as e:
                 logger.error("Import error wot.globalmap.provinces returned %s (%s), skip",
                              e.code, e.message)
