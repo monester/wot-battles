@@ -15,14 +15,6 @@
     display: inline-block;
 }
 
-.timeline-single-time {
-    width: 150px;
-    height: 60px;
-    display: inline-block;
-    /*border: 1px solid #000;*/
-    border-collapse: collapse;
-}
-
 .timetable {
     width: 100%;
     white-space: nowrap !important;
@@ -43,6 +35,7 @@
 .timetable-times table {
     background-image: linear-gradient(to right, #ccc, transparent 1px);
     background-size: 150px;
+    width: 2500px;
 }
 
 .timetable-row {
@@ -51,7 +44,7 @@
     /*height: 60px;*/
 }
 
-.timetable-row:first-child {
+.timetable-times tr:first-child .timetable-row {
     height: 30px;
 }
 
@@ -68,14 +61,21 @@ tr:first-child .timetable-row .timetable-time {
 
 .timetable-time {
     width: 150px;
-    height: 60px;
+    height: 70px;
     display: inline-block;
+    float: left;
     border-right: 1px solid #ccc;
     background-image: linear-gradient(to bottom,#fff 0,#e0e0e0 100%);
 }
 
+.timetable-time div {
+    width: 150px;
+    height: 70px;
+    display: block;
+}
+
 .timetable-province {
-    height: 61px;
+    height: 71px;
     overflow: hidden;
     border-bottom:1px solid #ccc;
 }

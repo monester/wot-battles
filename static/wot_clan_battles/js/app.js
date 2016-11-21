@@ -34,14 +34,15 @@ $.get('/battles/', {
     var clan_id = $('.timetable').data('clan-id');
 
     // templates
-    var time_template;
-    var time_template_clan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span>" +
-        "<br/>{{title}}: <a href='http://ru.wargaming.net/clans/wot/{{clan.clan_id}}/'>{{ clan.tag }}</a></div>";
-    var time_template_noclan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span>" +
-        "<br/>{{title}}: planned</div>";
-    var province_tmpl = "<div class='timetable-province'><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
-        "{{server}} | {{ name }} | {{ arena_name }}</a><p style='width: 400px; white-space: normal'>"+
-        "{{#clans}}<a href='http://ru.wargaming.net/clans/wot/{{clan_id}}/'>{{tag}}</a> {{/clans}}</p></div>";
+    var time_template_clan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span><br/>" +
+        "{{title}}: <a href='http://ru.wargaming.net/clans/wot/{{clan.clan_id}}/'>{{ clan.tag }}</a><br>" +
+        "{{WR}} / {{battles}} / {{elo}}</div>";
+    var time_template_noclan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span><br/>" +
+        "{{title}}: planned</div>";
+
+    var province_tmpl = "<div class='timetable-province'><strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
+        "{{server}} | {{ name }} | {{ arena_name }}</a></strong><p style='width: 400px; white-space: normal'>"+
+        "</p></div>";
 
     Mustache.parse(time_template_clan);
     Mustache.parse(time_template_noclan);
@@ -58,15 +59,16 @@ $.get('/battles/', {
     for(var time=new Date(start_date); time <= end_date; time=time.addMinutes(30)) {
         newrow.append("<div class='timetable-time'>" + time.shortTime().substr(0, 5) + "</div>");
     }
+    table.css('width', ((end_date - start_date) / (60*30*1000) + 1) * time_width);
     table.append($("<tr></tr>").append(newrow));
 
-    // console.log(assaults);
+    var split15 = false;
     // fill battle times
     for(var i in assaults) {
         var province_info = assaults[i]['province_info'];
         var battles = assaults[i]['battles'];
 
-        provinces.append(Mustache.render(province_tmpl, {
+        var province = $(Mustache.render(province_tmpl, {
             server: province_info['server'],
             name: province_info['province_name'],
             province_id: province_info['province_id'],
@@ -75,30 +77,19 @@ $.get('/battles/', {
         }));
 
         var assault_datetime = new Date(battles[0]['planned_start_at']);
-        padding = ((assault_datetime - start_date) / 1800000) * time_width;
+        var padding = ((assault_datetime - start_date) / 1800000) * time_width;
         newrow = $("<td class='timetable-row'></td>");
         newrow.css("padding-left", padding);
 
         var total_battles = battles.length;
         for(var t in battles) {
+            var title;
             var battle = battles[t];
             if(battle['real_start_at']) {
                 time = new Date(battle['real_start_at']);
             } else {
                 time = new Date(battle['planned_start_at']);
             }
-            var clan = {tag: ''};
-            if(battle['clan_a'] && battle['clan_b']) {
-                time_template = time_template_clan;
-                if(battle['clan_a']['clan_id'] == clan_id) {
-                    clan = battle['clan_b'];
-                } else {
-                    clan = battle['clan_a'];
-                }
-            } else {
-                time_template = time_template_noclan;
-            }
-            var title;
             if(total_battles - t > 2) {
                 title = "1/" + Math.pow(2, total_battles - t - 2);
             } else if(total_battles - t == 2) {
@@ -106,12 +97,34 @@ $.get('/battles/', {
             } else {
                 title = "Owner";
             }
-            newrow.append(Mustache.render(time_template, {
-                title: title,
-                clan: clan,
-                time: time.shortTime()
-            }));
+            if(battle['clan_a'] && battle['clan_b']) {
+                if(battle['clan_a']['clan_id'] == clan_id) {
+                    clan = battle['clan_b'];
+                } else {
+                    clan = battle['clan_a'];
+                }
+                newrow.append(Mustache.render(time_template_clan, {
+                    title: title,
+                    clan: clan,
+                    time: time.shortTime(),
+                    WR: clan['arena_stat']['wins_percent'],
+                    elo: clan['elo_' + province_info['max_vehicle_level']],
+                    battles: clan['arena_stat']['battles_count']
+                }));
+            } else {
+                newrow.append(Mustache.render(time_template_noclan, {
+                    title: title,
+                    time: time.shortTime(),
+                }));
+            }
         }
+        console.log(province_info['prime_time'].substr(3,2));
+        // if(province_info['prime_time'].substr(3,2) == 0) {
+        //     newrow.css('backgroud-color', '#000');
+        //     province.css('backgroud-color', '#000');
+        // }
+        // table.append($("<tr style='background-color: #0F0'></tr>").append(newrow));
         table.append($("<tr></tr>").append(newrow));
+        provinces.append(province);
     }
 });

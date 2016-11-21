@@ -80,10 +80,29 @@ class Clan(models.Model):
             'elo_10': self.elo_10,
         }
 
+    def as_json_with_arena(self, arena_id):
+        data = self.as_json()
+        stat = self.arena_stats.filter(arena_id=arena_id)
+        if stat:
+            data['arena_stat'] = stat[0].as_json()
+        else:
+            data['arena_stat'] = ClanArenaStat(
+                clan=self,
+                arena_id=arena_id,
+                wins_percent=0,
+                battles_count=0,
+            ).as_json()
+        return data
+
+
+class Front(models.Model):
+    front_id = models.CharField(max_length=254)
+    max_vehicle_level = models.IntegerField()
+
 
 class Province(models.Model):
     province_id = models.CharField(max_length=255)
-    front_id = models.CharField(max_length=255)
+    front = models.ForeignKey(Front)
     province_name = models.CharField(max_length=255)
     province_owner = models.ForeignKey(Clan, on_delete=models.SET_NULL, null=True, blank=True)
     arena_id = models.CharField(max_length=255)
@@ -103,6 +122,20 @@ class Province(models.Model):
             'arena_name': self.arena_name,
             'prime_time': self.prime_time,
             'server': self.server,
+            'max_vehicle_level': self.front.max_vehicle_level,
+        }
+
+
+class ClanArenaStat(models.Model):
+    clan = models.ForeignKey(Clan, related_name='arena_stats')
+    arena_id = models.CharField(max_length=255)
+    wins_percent = models.FloatField()
+    battles_count = models.IntegerField()
+
+    def as_json(self):
+        return {
+            'wins_percent': self.wins_percent,
+            'battles_count': self.battles_count,
         }
 
 
@@ -169,7 +202,7 @@ class ProvinceAssault(models.Model):
         battles = self.clan_battles(clan)
         return {
             'province_info': self.province.as_json(),
-            'clans': [c.as_json() for c in self.clans.all()],
+            'clans': {c.pk: c.as_json_with_arena(self.arena_id) for c in self.clans.all()},
             'battles': [b.as_json() for b in self.clan_battles(clan)],
         }
 
@@ -232,8 +265,8 @@ class ProvinceBattle(models.Model):
         return {
             'planned_start_at': self.round_datetime,
             'real_start_at': self.start_at,
-            'clan_a': clan_a.as_json() if clan_a else None,
-            'clan_b': clan_b.as_json() if clan_b else None,
+            'clan_a': clan_a.as_json_with_arena(self.arena_id) if clan_a else None,
+            'clan_b': clan_a.as_json_with_arena(self.arena_id) if clan_b else None,
         }
 
 
@@ -244,11 +277,6 @@ class ProvinceTag(models.Model):
 
     def __repr__(self):
         return "<ProvinceTag %s: %s@%s>" % (self.date, self.tag, self.province_id)
-
-
-class Front(models.Model):
-    front_id = models.CharField(max_length=254)
-    max_vehicle_level = models.IntegerField()
 
 
 @receiver(pre_save, sender=Clan)
