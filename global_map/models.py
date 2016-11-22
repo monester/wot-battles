@@ -116,6 +116,10 @@ class ProvinceAssault(models.Model):
     round_number = models.IntegerField()
     landing_type = models.CharField(max_length=255, null=True)
 
+    class Meta:
+        ordering = ('date', )
+        unique_together = ('date', 'province')
+
     def __repr__(self):
         return '<ProvinceAssault: %s owned by %s' % (
             self.province.province_id, str(self.current_owner))

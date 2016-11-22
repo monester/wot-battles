@@ -20,7 +20,7 @@ def update_province(front_id, province_data):
     p = province_data
     province_owner = p['owner_clan_id'] and Clan.objects.get_or_create(pk=p['owner_clan_id'])[0]
     front = Front.objects.get(front_id=front_id)
-    logger.debug("update_province: %s", p['province_id'])
+    logger.debug("update_province: running update for province '%s'", p['province_id'])
     province = Province.objects.update_or_create(front=front, province_id=p['province_id'], defaults={
         'province_name': p['province_name'],
         'province_owner': province_owner,
@@ -41,19 +41,19 @@ def update_province(front_id, province_data):
     # if battle starts next day, but belongs to previous
     date = dt.date() if dt >= prime_dt else (dt - timedelta(days=1)).date()
 
+    assault, created = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
+        'current_owner': province_owner,
+        'prime_time': province.prime_time,
+        'arena_id': province.arena_id,
+        'landing_type': p['landing_type'],
+        'round_number': p['round_number'],
+    })
+
+    if created:
+        logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
+                     p['province_id'], repr(province.province_owner), date)
+
     if clans:
-        assault, created = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
-            'current_owner': province_owner,
-            'prime_time': province.prime_time,
-            'arena_id': province.arena_id,
-            'landing_type': p['landing_type'],
-            'round_number': p['round_number'],
-        })
-
-        if created:
-            logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
-                         p['province_id'], repr(province.province_owner), date)
-
         if set(assault.clans.all()) != clans:
             assault.clans.clear()
             assault.clans.add(*clans)
@@ -74,12 +74,12 @@ def update_province(front_id, province_data):
                 logger.debug("update_province: created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
                              p['province_id'], pb.round, repr(pb.clan_a), repr(pb.clan_b))
     else:
-        try:
-            ProvinceAssault.objects.get(province=province, date=date).clans.clear()
-            logger.debug(
-                "update_province: no more clans assaulting province '%s', cleared clans", p['province_id'])
-        except ProvinceAssault.DoesNotExist:
-            pass
+        assault.clans.clear()
+        logger.debug("update_province: no more clans assaulting province '%s', cleared clans", p['province_id'])
+        if assault.datetime > datetime.now(tz=pytz.UTC):
+            logger.debug("update_province: removed assault for province %s", p['province_id'])
+        else:
+            logger.warn("update_province: no clans left in assault %s but it is running", p['province_id'])
 
 
 class ProvinceInfo(dict):
