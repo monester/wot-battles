@@ -162,7 +162,8 @@ def update_clan(clan_id):
 
     # fetch existing battles
     existing_assaults = {}
-    for pa in ProvinceAssault.objects.filter(clans=clan, date=datetime.now(tz=pytz.UTC).date()):
+    for pa in ProvinceAssault.objects.filter(date=datetime.now(tz=pytz.UTC).date())\
+            .filter(Q(clans=clan) | Q(current_owner=clan)):
         existing_assaults[pa.province.province_id] = pa
         province_ids.setdefault(pa.province.front.front_id, []).append(pa.province.province_id)
 
