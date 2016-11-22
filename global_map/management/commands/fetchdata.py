@@ -16,7 +16,7 @@ wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 logger = logging.getLogger(__name__)
 
 
-def update_province(front_id, province_set, province_data):
+def update_province(front_id, assault, province_data):
     province_id = province_data['province_id']
     province_name = province_data['province_name']
     province_owner = province_data['owner_clan_id'] and \
@@ -56,15 +56,14 @@ def update_province(front_id, province_set, province_data):
     # if battle starts next day, but belongs to previous
     date = dt.date() if dt >= prime_dt else (dt - timedelta(days=1)).date()
 
-    if province_id in province_set or clans:
-        if province_id in province_set:
-            assault = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
-                'current_owner': province_owner,
-                'prime_time': province.prime_time,
-                'arena_id': province.arena_id,
-                'landing_type': landing_type,
-                'round_number': round_number,
-            })[0]
+    if assault or clans:
+        if assault:
+            assault.current_owner = province_owner
+            assault.prime_time = province.prime_time
+            assault.arena_id = province.arena_id
+            assault.landing_type = landing_type
+            assault.round_number = round_number
+            assault.save()
         else:
             assault = ProvinceAssault.objects.create(
                 province=province,
@@ -93,11 +92,11 @@ def update_province(front_id, province_set, province_data):
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
         if set(assault.clans.all()) != clans:
-            assault.clans.clear()
             if clans:
+                assault.clans.clear()
                 assault.clans.add(*clans)
-                logger.debug("update_province: clans assaulting '%s': %s",
-                             province_id, ' '.join([str(c) for c in clans]))
+                logger.debug("update_province: add clans to province '%s': %s",
+                             province_id, ' '.join([repr(c) for c in clans]))
             else:
                 assault.clans.clear()
                 logger.debug("update_province: no more clans assaulting province '%s', cleared clans", province_id)
@@ -158,7 +157,7 @@ def update_clan(clan_id):
     globalmap_info = wot.globalmap.info()
     if globalmap_info['state'] == 'frozen':
         logger.info("Map is frozen, skipping update")
-        return
+        # return
 
     # fill fronts info
     try:
@@ -188,7 +187,7 @@ def update_clan(clan_id):
 
     # fetch existing battles
     existing_assaults = {}
-    for pa in ProvinceAssault.objects.filter(date=datetime.now(tz=pytz.UTC).date())\
+    for pa in ProvinceAssault.objects.filter(date=datetime.now(tz=pytz.UTC).date()) \
             .filter(Q(clans=clan) | Q(current_owner=clan)):
         existing_assaults[pa.province.province_id] = pa
         province_ids.setdefault(pa.province.front.front_id, []).append((pa.province.province_id, pa))
@@ -208,7 +207,7 @@ def update_clan(clan_id):
                 logger.error("Import error wot.globalmap.provinces returned %s (%s), skip", e.code, e.message)
             else:
                 for province_data in provinces:
-                    update_province(front_id, province_set, province_data)  # update DB
+                    update_province(front_id, province_set[province_data['province_id']], province_data)  # update DB
                     clans.extend(province_data['attackers'])
                     clans.extend(province_data['competitors'])
                     if province_data['owner_clan_id']:
