@@ -16,55 +16,73 @@ wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 logger = logging.getLogger(__name__)
 
 
-def update_province(front_id, province_data):
-    p = province_data
-    province_owner = p['owner_clan_id'] and Clan.objects.get_or_create(pk=p['owner_clan_id'])[0]
+def update_province(front_id, province_set, province_data):
+    province_id = province_data['province_id']
+    province_name = province_data['province_name']
+    province_owner = province_data['owner_clan_id'] and \
+                     Clan.objects.get_or_create(pk=province_data['owner_clan_id'])[0]
+    arena_id = province_data['arena_id']
+    arena_name = province_data['arena_name']
+    server = province_data['server']
+    prime_time = province_data['prime_time']
+    competitors = province_data['competitors']
+    attackers = province_data['attackers']
+    landing_type = province_data['landing_type']
+    round_number = province_data['round_number']
+    active_battles = province_data['active_battles']
+
+    battles_start_at = datetime.strptime(province_data['battles_start_at'], '%Y-%m-%dT%H:%M:%S') \
+        .replace(tzinfo=pytz.UTC)
+
     front = Front.objects.get(front_id=front_id)
-    logger.debug("update_province: running update for province '%s'", p['province_id'])
-    province = Province.objects.update_or_create(front=front, province_id=p['province_id'], defaults={
-        'province_name': p['province_name'],
+    logger.debug("update_province: running update for province '%s'", province_id)
+    province = Province.objects.update_or_create(front=front, province_id=province_id, defaults={
+        'province_name': province_name,
         'province_owner': province_owner,
-        'arena_id': p['arena_id'],
-        'arena_name': p['arena_name'],
-        'server': p['server'],
-        'prime_time': time(*map(int, p['prime_time'].split(':'))),  # UTC time
+        'arena_id': arena_id,
+        'arena_name': arena_name,
+        'server': server,
+        'prime_time': time(*map(int, prime_time.split(':'))),  # UTC time
     })[0]
 
     clans = set([
         Clan.objects.get_or_create(pk=clan_id)[0]
-        for clan_id in p['competitors'] + p['attackers']
+        for clan_id in competitors + attackers
     ])
 
-    dt = datetime.strptime(p['battles_start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC)
+    dt = battles_start_at
     prime_dt = dt.replace(hour=province.prime_time.hour, minute=province.prime_time.minute)
 
     # if battle starts next day, but belongs to previous
     date = dt.date() if dt >= prime_dt else (dt - timedelta(days=1)).date()
 
-    assault, created = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
-        'current_owner': province_owner,
-        'prime_time': province.prime_time,
-        'arena_id': province.arena_id,
-        'landing_type': p['landing_type'],
-        'round_number': p['round_number'],
-    })
+    if province_id in province_set or clans:
+        if province_id in province_set:
+            assault = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
+                'current_owner': province_owner,
+                'prime_time': province.prime_time,
+                'arena_id': province.arena_id,
+                'landing_type': landing_type,
+                'round_number': round_number,
+            })[0]
+        else:
+            assault = ProvinceAssault.objects.create(
+                province=province,
+                date=date,
+                current_owner=province_owner,
+                prime_time=province.prime_time,
+                arena_id=province.arena_id,
+                landing_type=landing_type,
+                round_number=round_number,
+            )
+            logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
+                         province_id, province.province_owner, date)
 
-    if created:
-        logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
-                     p['province_id'], repr(province.province_owner), date)
-
-    if clans:
-        if set(assault.clans.all()) != clans:
-            assault.clans.clear()
-            assault.clans.add(*clans)
-            logger.debug("update_province: clans assaulting '%s': %s",
-                         p['province_id'], ' '.join([str(c) for c in clans]))
-
-        for active_battle in p['active_battles']:
+        for active_battle in active_battles:
             created, pb = ProvinceBattle.objects.get_or_create(
                 assault=assault,
                 province=province,
-                arena_id=p['arena_id'],
+                arena_id=arena_id,
                 clan_a=Clan.objects.get_or_create(pk=active_battle['clan_a']['clan_id'])[0],
                 clan_b=Clan.objects.get_or_create(pk=active_battle['clan_b']['clan_id'])[0],
                 start_at=datetime.strptime(active_battle['start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC),
@@ -72,14 +90,22 @@ def update_province(front_id, province_data):
             )
             if created:
                 logger.debug("update_province: created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
-                             p['province_id'], pb.round, repr(pb.clan_a), repr(pb.clan_b))
-    else:
-        assault.clans.clear()
-        logger.debug("update_province: no more clans assaulting province '%s', cleared clans", p['province_id'])
-        if assault.datetime > datetime.now(tz=pytz.UTC):
-            logger.debug("update_province: removed assault for province %s", p['province_id'])
-        else:
-            logger.warn("update_province: no clans left in assault %s but it is running", p['province_id'])
+                             province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
+
+        if set(assault.clans.all()) != clans:
+            assault.clans.clear()
+            if clans:
+                assault.clans.add(*clans)
+                logger.debug("update_province: clans assaulting '%s': %s",
+                             province_id, ' '.join([str(c) for c in clans]))
+            else:
+                assault.clans.clear()
+                logger.debug("update_province: no more clans assaulting province '%s', cleared clans", province_id)
+                if assault.datetime > datetime.now(tz=pytz.UTC):
+                    logger.debug("update_province: removed assault for province %s", province_id)
+                    assault.delete()
+                else:
+                    logger.warn("update_province: no clans left in assault %s but it is running", province_id)
 
 
 class ProvinceInfo(dict):
@@ -148,14 +174,14 @@ def update_clan(clan_id):
     resp = requests.get('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
     data = resp.json()
     for p in data['battles'] + data['planned_battles']:
-        province_ids.setdefault(p['front_id'], []).append(p['province_id'])
+        province_ids.setdefault(p['front_id'], []).append((p['province_id'], None))
 
     # fetch clan battles
     try:
         clan_provinces = wot.globalmap.clanprovinces(clan_id=clan_id, language='ru')
         if clan_provinces:
             for p in clan_provinces[str(clan_id)]:
-                province_ids.setdefault(p['front_id'], []).append(p['province_id'])
+                province_ids.setdefault(p['front_id'], []).append((p['province_id'], None))
     except RequestError as e:
         logger.error("Import error wot.globalmap.clanprovinces returned %s (%s)",
                      e.code, e.message)
@@ -165,7 +191,7 @@ def update_clan(clan_id):
     for pa in ProvinceAssault.objects.filter(date=datetime.now(tz=pytz.UTC).date())\
             .filter(Q(clans=clan) | Q(current_owner=clan)):
         existing_assaults[pa.province.province_id] = pa
-        province_ids.setdefault(pa.province.front.front_id, []).append(pa.province.province_id)
+        province_ids.setdefault(pa.province.front.front_id, []).append((pa.province.province_id, pa))
 
     # split provinces by 100
     for front_id, provinces in province_ids.items():
@@ -175,13 +201,14 @@ def update_clan(clan_id):
     clans = []
     for front_id, provinces_sets in province_ids.items():
         for provinces_set in provinces_sets:
+            province_set = dict(provinces_set)
             try:
-                provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(provinces_set))
+                provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(province_set.keys()))
             except RequestError as e:
                 logger.error("Import error wot.globalmap.provinces returned %s (%s), skip", e.code, e.message)
             else:
                 for province_data in provinces:
-                    update_province(front_id, province_data)  # update DB
+                    update_province(front_id, province_set, province_data)  # update DB
                     clans.extend(province_data['attackers'])
                     clans.extend(province_data['competitors'])
                     if province_data['owner_clan_id']:
