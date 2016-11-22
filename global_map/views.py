@@ -63,7 +63,7 @@ class ListBattlesJson(View):
         for assault in assaults:
             times.extend(assault.planned_times)
 
-        assaults = [assault.as_clan_json(clan) for assault in assaults]
+        assaults = [assault.as_clan_json(clan) for assault in set(assaults)]
 
         if times:
             min_time = min(times)
