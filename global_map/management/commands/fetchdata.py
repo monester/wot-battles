@@ -74,9 +74,12 @@ def update_province(front_id, province_data):
                 logger.debug("update_province: created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
                              p['province_id'], pb.round, repr(pb.clan_a), repr(pb.clan_b))
     else:
-        pa = ProvinceAssault.objects.get(province=province, date=date)
-        pa.clans.clear()
-        logger.debug("update_province: no more assaulting clans for province '%s', cleared clans.", p['province_id'])
+        try:
+            ProvinceAssault.objects.get(province=province, date=date).clans.clear()
+            logger.debug(
+                "update_province: no more clans assaulting province '%s', cleared clans", p['province_id'])
+        except ProvinceAssault.DoesNotExist:
+            pass
 
 
 class ProvinceInfo(dict):
