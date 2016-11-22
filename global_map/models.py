@@ -199,11 +199,17 @@ class ProvinceAssault(models.Model):
         return len(self.planned_times)
 
     def as_clan_json(self, clan):
-        battles = self.clan_battles(clan)
+        battles = [b.as_json() for b in self.clan_battles(clan)]
+        if self.current_owner == clan:
+            mode = 'defence'
+            battles = battles[-1:-2:-1]
+        else:
+            mode = 'attack'
         return {
+            'mode': mode,
             'province_info': self.province.as_json(),
             'clans': {c.pk: c.as_json_with_arena(self.arena_id) for c in self.clans.all()},
-            'battles': [b.as_json() for b in self.clan_battles(clan)],
+            'battles': battles,
         }
 
 
@@ -266,7 +272,7 @@ class ProvinceBattle(models.Model):
             'planned_start_at': self.round_datetime,
             'real_start_at': self.start_at,
             'clan_a': clan_a.as_json_with_arena(self.arena_id) if clan_a else None,
-            'clan_b': clan_a.as_json_with_arena(self.arena_id) if clan_b else None,
+            'clan_b': clan_b.as_json_with_arena(self.arena_id) if clan_b else None,
         }
 
 

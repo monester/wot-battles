@@ -23,6 +23,7 @@ from global_map.views import ListBattles, ListBattlesJson, TagView
 urlpatterns = [
     url(r'^$', ListBattles.as_view()),
     url(r'^tag/', TagView.as_view()),
-    url(r'^battles/', ListBattlesJson.as_view()),
+    url(r'^battles/$', ListBattlesJson.as_view()),
+    url(r'^battles/(?P<date>\d{4}-\d{2}-\d{2})/$', ListBattlesJson.as_view()),
     url(r'^admin/', admin.site.urls),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

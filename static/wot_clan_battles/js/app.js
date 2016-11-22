@@ -25,7 +25,11 @@ Date.prototype.shortTime = function () {
 };
 
 refresh_clan = function () {
-    $.get('/battles/', {
+    var url = '/battles/';
+    var date = $("#table-date").val();
+    if(date != 'latest')
+        url += date + '/';
+    $.get(url, {
         clan_id: $('.timetable').data('clan-id')
     }, function (data) {
         var time_width = $('.timetable-time').outerWidth();
@@ -42,8 +46,7 @@ refresh_clan = function () {
             "{{title}}: planned</div>";
 
         var province_tmpl = "<div class='timetable-province'><strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
-            "{{server}} | {{ name }} | {{ arena_name }}</a></strong><p style='width: 400px; white-space: normal'>"+
-            "</p></div>";
+            "{{server}} | {{ name }} | {{ arena_name }} | {{ mode }}</a></strong></div>";
 
         Mustache.parse(time_template_clan);
         Mustache.parse(time_template_noclan);
@@ -64,24 +67,27 @@ refresh_clan = function () {
         table.append($("<tr></tr>").append(newrow));
 
         // fill battle times
-        for(var i in assaults) {
+        for(var i=0; i<assaults.length; i++) {
             var province_info = assaults[i]['province_info'];
             var battles = assaults[i]['battles'];
+            var mode = assaults[i]['mode'];
+            var total_battles = battles.length;
 
             var province = $(Mustache.render(province_tmpl, {
                 server: province_info['server'],
                 name: province_info['province_name'],
                 province_id: province_info['province_id'],
                 arena_name: province_info['arena_name'],
-                clans: assaults[i]['clans'],
+                mode: mode,
+                clans: assaults[i]['clans']
             }));
 
-            var assault_datetime = new Date(battles[0]['planned_start_at']);
-            var padding = ((assault_datetime - start_date) / 1800000) * time_width;
+            var assault_datetime, padding;
+            assault_datetime = new Date(battles[0]['planned_start_at']);
+            padding = ((assault_datetime - start_date) / 1800000) * time_width;
+
             newrow = $("<td class='timetable-row'></td>");
             newrow.css("padding-left", padding);
-
-            var total_battles = battles.length;
             for(var t in battles) {
                 var title;
                 var battle = battles[t];
@@ -118,7 +124,6 @@ refresh_clan = function () {
                     }));
                 }
             }
-            console.log(province_info['prime_time'].substr(3,2));
             // if(province_info['prime_time'].substr(3,2) == 0) {
             //     newrow.css('backgroud-color', '#000');
             //     province.css('backgroud-color', '#000');
