@@ -142,7 +142,7 @@ LOGGING = {
     },
     'loggers': {
         'global_map': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'handlers': ['console', 'file'],
         }
     }

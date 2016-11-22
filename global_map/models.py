@@ -29,7 +29,7 @@ class Clan(models.Model):
         return '<Clan: %s>' % self.tag
 
     def __str__(self):
-        return repr(self)
+        return self.tag
 
     def force_update(self):
         clan_info = wgn.clans.info(clan_id=self.pk)[str(self.pk)]

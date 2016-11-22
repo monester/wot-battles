@@ -6,7 +6,7 @@
     <p>
         <button onclick="refresh_clan()">refresh</button>
         <button onclick="enable_auto()" id="enable-auto">Auto-refresh: Off</button>
-        <select id="table-date" style="display: inline">
+        <select id="table-date" style="display: inline" onchange="refresh_clan()">
             <option selected value="latest">latest</option>
             <option value="2016-11-21">2016-11-21</option>
         </select>

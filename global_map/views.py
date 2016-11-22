@@ -52,12 +52,12 @@ class ListBattlesJson(View):
         clan = Clan.objects.get(pk=35039)
         if date:
             date = datetime_date(*[int(i) for i in date.split('-')])
-            assaults = ProvinceAssault.objects.filter(date=date) \
-                .filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
+            assaults = ProvinceAssault.objects.filter(date=date).annotate(ccount=Count('clans')) \
+                .filter(ccount__gt=0).filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
         else:
             date = datetime.now().date()
-            assaults = ProvinceAssault.objects.filter(date=date) \
-                .filter(Q(clans=clan) | Q(current_owner=clan))
+            assaults = ProvinceAssault.objects.filter(date=date).annotate(ccount=Count('clans')) \
+                .filter(ccount__gt=0).filter(Q(clans=clan) | Q(current_owner=clan))
 
         times = []
         for assault in assaults:

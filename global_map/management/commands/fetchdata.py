@@ -20,6 +20,7 @@ def update_province(front_id, province_data):
     p = province_data
     province_owner = p['owner_clan_id'] and Clan.objects.get_or_create(pk=p['owner_clan_id'])[0]
     front = Front.objects.get(front_id=front_id)
+    logger.debug("update_province: %s", p['province_id'])
     province = Province.objects.update_or_create(front=front, province_id=p['province_id'], defaults={
         'province_name': p['province_name'],
         'province_owner': province_owner,
@@ -41,19 +42,26 @@ def update_province(front_id, province_data):
         # if battle starts next day, but belongs to previous
         date = dt.date() if dt >= prime_dt else (dt - timedelta(days=1)).date()
 
-        assault = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
+        assault, created = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults={
             'current_owner': province_owner,
             'prime_time': province.prime_time,
             'arena_id': province.arena_id,
             'landing_type': p['landing_type'],
             'round_number': p['round_number'],
-        })[0]
+        })
+
+        if created:
+            logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
+                         p['province_id'], repr(province.province_owner), date)
+
         if set(assault.clans.all()) != clans:
             assault.clans.clear()
             assault.clans.add(*clans)
+            logger.debug("update_province: clans assaulting '%s': %s",
+                         p['province_id'], ' '.join([str(c) for c in clans]))
 
         for active_battle in p['active_battles']:
-            ProvinceBattle.objects.get_or_create(
+            created, pb = ProvinceBattle.objects.get_or_create(
                 assault=assault,
                 province=province,
                 arena_id=p['arena_id'],
@@ -62,6 +70,9 @@ def update_province(front_id, province_data):
                 start_at=datetime.strptime(active_battle['start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC),
                 round=active_battle['round'],
             )
+            if created:
+                logger.debug("update_province: created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
+                             p['province_id'], pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
 
 class ProvinceInfo(dict):
@@ -113,6 +124,7 @@ def update_clan(clan_id):
     # check global map status
     globalmap_info = wot.globalmap.info()
     if globalmap_info['state'] == 'frozen':
+        logger.info("Map is frozen, skipping update")
         return
 
     # fill fronts info
@@ -203,6 +215,6 @@ class Command(BaseCommand):
         try:
             update_clan(clan_id)
         except Exception:
-            logger.exception("Unknown error")
+            logger.critical("Unknown error", exc_info=True)
         logger.info("Finished import at %s, seconds elapsed %s",
                     datetime.now(tz=pytz.UTC), time()-start)
