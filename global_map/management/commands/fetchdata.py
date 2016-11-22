@@ -96,9 +96,9 @@ class TournamentInfo(dict):
     def clans_info(self):
         clans = {}
         for battle in self['battles']:
-            if 'first_competitor' in battle:
+            if 'first_competitor' in battle and battle['first_competitor']:
                 clans[battle['first_competitor']['id']] = battle['first_competitor']
-            if 'second_competitor' in battle:
+            if 'second_competitor' in battle and battle['second_competitor']:
                 clans[battle['second_competitor']['id']] = battle['second_competitor']
         for clan in self['pretenders'] or []:
             clans[clan['id']] = clan
@@ -109,6 +109,12 @@ def update_clan(clan_id):
     clan = Clan.objects.get_or_create(pk=clan_id)[0]
     province_ids = {}
     fronts = {}
+
+    # check global map status
+    globalmap_info = wot.globalmap.info()
+    if globalmap_info['state'] == 'frozen':
+        return
+
     # fill fronts info
     try:
         for front in wot.globalmap.fronts():
@@ -139,7 +145,7 @@ def update_clan(clan_id):
     existing_assaults = {}
     for pa in ProvinceAssault.objects.filter(clans=clan, date=datetime.now(tz=pytz.UTC).date()):
         existing_assaults[pa.province.province_id] = pa
-        province_ids.setdefault(pa.province.front_id, []).append(pa.province.province_id)
+        province_ids.setdefault(pa.province.front.front_id, []).append(pa.province.province_id)
 
     # split provinces by 100
     for front_id, provinces in province_ids.items():
@@ -150,28 +156,9 @@ def update_clan(clan_id):
     for front_id, provinces_sets in province_ids.items():
         for provinces_set in provinces_sets:
             try:
-                provinces = wot.globalmap.provinces(
-                    front_id=front_id, province_id=','.join(provinces_set))  # , fields=','.join([
-                #         'arena_id',
-                #         'arena_name',
-                #         'attackers',
-                #         'battles_start_at',
-                #         'competitors'
-                #         'landing_type',
-                #         'neighbours',
-                #         'owner_clan_id',
-                #         'prime_time',
-                #         'province_id',
-                #         'province_name',
-                #         'round_number',
-                #         'server',
-                #         'status',
-                #         'uri',
-                #         'active_battles',
-                # ]))
+                provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(provinces_set))
             except RequestError as e:
-                logger.error("Import error wot.globalmap.provinces returned %s (%s), skip",
-                             e.code, e.message)
+                logger.error("Import error wot.globalmap.provinces returned %s (%s), skip", e.code, e.message)
             else:
                 for province_data in provinces:
                     update_province(front_id, province_data)  # update DB
@@ -213,6 +200,9 @@ class Command(BaseCommand):
         start = time()
         logger.info("Starting import at %s" % datetime.now(tz=pytz.UTC))
         clan_id = 35039  # SMIRK
-        update_clan(clan_id)
+        try:
+            update_clan(clan_id)
+        except Exception:
+            logger.exception("Unknown error")
         logger.info("Finished import at %s, seconds elapsed %s",
                     datetime.now(tz=pytz.UTC), time()-start)
