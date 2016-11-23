@@ -240,16 +240,27 @@ def update_clan(clan_id):
         for provinces_set in provinces_sets:
             province_set = dict(provinces_set)
             try:
+                logger.debug("Query WG API for provinces: %s", ','.join(province_set.keys()))
                 provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(province_set.keys()))
             except RequestError as e:
                 logger.error("Import error wot.globalmap.provinces returned %s (%s), skip", e.code, e.message)
             else:
                 for province_data in provinces:
-                    update_province(front_id, province_set[province_data['province_id']], province_data)  # update DB
+                    province_id = province_data['province_id']
+                    update_province(front_id, province_set[province_id], province_data)  # update DB
                     clans.extend(province_data['attackers'])
                     clans.extend(province_data['competitors'])
                     if province_data['owner_clan_id']:
                         clans.append(province_data['owner_clan_id'])
+                    del province_set[province_id]
+
+                # check if provinces is removed but we have ProvinceAssault associated with it
+                for province_id, province_assault in province_set.items():
+                    if province_assault:
+                        logger.warn("Cleanup orphaned ProvinceAssault %s", repr(province_assault))
+                        province_assault.delete()
+                    else:
+                        logger.error("Unknown province '%s' in output", province_id)
 
     clans = list(set(clans))
     for clans_set in [clans[i:i+10] for i in range(0, len(clans), 10)]:
