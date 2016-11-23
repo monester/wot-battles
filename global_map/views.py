@@ -1,19 +1,13 @@
-import re
-import os
-import math
-import pytz
 from datetime import datetime, timedelta, date as datetime_date
-import json
+
 from django.views.generic import TemplateView, View
-from global_map.models import Clan, ProvinceTag, ProvinceAssault, ProvinceBattle
-import urllib2
-from collections import OrderedDict, defaultdict
 from django.conf import settings
-from retrying import retry
-import wargaming
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, QueryDict
 from django.db.models import Count, Q
+
+import wargaming
+from global_map.models import Clan, ProvinceTag, ProvinceAssault
 
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
@@ -52,12 +46,11 @@ class ListBattlesJson(View):
         clan = Clan.objects.get(pk=35039)
         if date:
             date = datetime_date(*[int(i) for i in date.split('-')])
-            assaults = ProvinceAssault.objects.filter(date=date).annotate(ccount=Count('clans')) \
-                .filter(ccount__gt=0).filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
+            assaults = ProvinceAssault.objects.filter(date=date) \
+                .filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
         else:
             date = datetime.now().date()
-            assaults = ProvinceAssault.objects.filter(date=date).annotate(ccount=Count('clans')) \
-                .filter(ccount__gt=0).filter(Q(clans=clan) | Q(current_owner=clan))
+            assaults = ProvinceAssault.objects.filter(date=date).filter(Q(clans=clan) | Q(current_owner=clan))
 
         times = []
         for assault in assaults:

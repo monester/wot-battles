@@ -34,29 +34,21 @@
 
 .timetable-times table {
     background-image: linear-gradient(to right, #ccc, transparent 1px);
-    background-size: 150px;
+    background-size: 100px;
     width: 2500px;
 }
 
 .timetable-row {
     border-top: 1px solid #ccc;
     white-space: nowrap;
-    /*height: 60px;*/
 }
 
-.timetable-times tr:first-child .timetable-row {
+/*.timetable-times tr:first-child .timetable-row {
     height: 30px;
 }
 
 .timetable-row .timetable-time:first-child {
     border-left: 1px solid #ccc;
-}
-
-tr:first-child .timetable-row .timetable-time {
-    text-align: center;
-    vertical-align: middle;
-    line-height: 30px;
-    height: 30px;
 }
 
 .timetable-time {
@@ -68,12 +60,17 @@ tr:first-child .timetable-row .timetable-time {
     background-image: linear-gradient(to bottom,#fff 0,#e0e0e0 100%);
 }
 
-.timetable-time div {
-    width: 150px;
-    height: 70px;
+.timetable-time .stat-row {
     display: block;
+    width: 100%;
 }
+.timetable-time .stat-row span {
+    display: inline-block;
+    width: 33%;
+    text-align: center;
+} */
 
+/* SINGLE ROW WITH PROVINCE ID */
 .timetable-province {
     height: 71px;
     overflow: hidden;
@@ -82,4 +79,62 @@ tr:first-child .timetable-row .timetable-time {
 
 .timetable-province:first-child {
     border-top:1px solid #ccc;
+}
+
+/* SINGLE CELL WITH BATTLE */
+.timetable-cell {
+  display: block;
+  border-left: 1px solid #ccc;
+  padding: 2px 4px 2px;
+  width: 200px;
+  height: 70px;
+  position: relative;
+  overflow-y: hidden;
+  float: left;
+  background-image: linear-gradient(to bottom,#fff 0,#e0e0e0 100%);
+}
+
+.timetable-cell-header {
+  display: block;
+  width: 100%;
+  height: 18px;
+}
+
+.timetable-cell-header span {
+  width: 50%;
+  font-size: 14px;
+  font-family: Andale Mono, monospace	;
+  display: inline-block;
+}
+
+.timetable-cell-header span:last-child {
+  text-align: right;
+}
+
+.timetable-cell-opponent {
+  font-size: 18px;
+  text-align: center;
+  /*font-weight: bold;*/
+}
+
+.timetable-cell-stats {
+  position: absolute;
+  display: block;
+  width: calc(100% - 4px);
+  bottom: 0;
+  height: 18px;
+}
+
+.timetable-cell-stats span {
+  display: inline-block;
+  width: 33%;
+  text-align: center;
+}
+
+/* SINGLE CELL WITH BATTLE (HEADER LINE) */
+tr:first-child .timetable-row .timetable-cell {
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px;
+    height: 30px;
 }

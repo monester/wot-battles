@@ -24,26 +24,39 @@ Date.prototype.shortTime = function () {
     return this.toTimeString().substr(0,8);
 };
 
-refresh_clan = function () {
+var selected_date = 'latest';
+refresh_clan = function (force_update) {
+    force_update = force_update != undefined;
+    console.log(selected_date);
     var url = '/battles/';
-    var date = $("#table-date").val();
-    if(date != 'latest')
-        url += date + '/';
+    if(selected_date != 'latest')
+        url += selected_date + '/';
+
     $.get(url, {
-        clan_id: $('.timetable').data('clan-id')
+        clan_id: $('.timetable').data('clan-id'),
+        force_update: force_update
     }, function (data) {
-        var time_width = $('.timetable-time').outerWidth();
+        var time_width = $('.timetable-cell').outerWidth();
         var start_date = new Date(data['time_range'][0]);
         var end_date = new Date(data['time_range'][1]);
         var assaults = data['assaults'];
         var clan_id = $('.timetable').data('clan-id');
 
         // templates
-        var time_template_clan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span><br/>" +
-            "{{title}}: <a href='http://ru.wargaming.net/clans/wot/{{clan.clan_id}}/'>{{ clan.tag }}</a><br>" +
-            "{{WR}} / {{battles}} / {{elo}}</div>";
+        var time_template_clan = "<div class='timetable-time'><p><span style='float: right'>{{ time }}</span></p>" +
+            "<p>{{title}}: <a href='http://ru.wargaming.net/clans/wot/{{clan.clan_id}}/'>{{ clan.tag }}</a></p>" +
+            "<p class='stat-row'><span>{{WR}}</span><span>{{battles}}</span><span>{{elo}}</span></p></div>";
         var time_template_noclan = "<div class='timetable-time'><span style='float: right'>{{ time }}</span><br/>" +
             "{{title}}: planned</div>";
+
+        var template = '<div class="timetable-cell">' +
+            '<div class="timetable-cell-header"><span>{{round}}</span><span>{{time}}</span></div>' +
+            '<div class="timetable-cell-opponent"><span>{{clan_tag}}</span></div>' +
+            '<div class="timetable-cell-stats"><span>{{WR}}</span><span>{{battles}}</span><span>{{elo}}</span></div>' +
+            '</div>';
+
+        time_template_clan = template;
+        time_template_noclan = template;
 
         var province_tmpl = "<div class='timetable-province'><strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
             "{{server}} | {{ name }} | {{ arena_name }} | {{ mode }}</a></strong></div>";
@@ -61,7 +74,7 @@ refresh_clan = function () {
         var provinces = $('.timetable-provinces');
         var newrow = $( "<td class='timetable-row'></td>" );
         for(var time=new Date(start_date); time <= end_date; time=time.addMinutes(30)) {
-            newrow.append("<div class='timetable-time'>" + time.shortTime().substr(0, 5) + "</div>");
+            newrow.append("<div class='timetable-cell'>" + time.shortTime().substr(0, 5) + "</div>");
         }
         table.css('width', ((end_date - start_date) / (60*30*1000) + 1) * time_width);
         table.append($("<tr></tr>").append(newrow));
@@ -89,7 +102,7 @@ refresh_clan = function () {
             newrow = $("<td class='timetable-row'></td>");
             newrow.css("padding-left", padding);
             for(var t in battles) {
-                var title;
+                var title, clan;
                 var battle = battles[t];
                 if(battle['real_start_at']) {
                     time = new Date(battle['real_start_at']);
@@ -109,33 +122,32 @@ refresh_clan = function () {
                     } else {
                         clan = battle['clan_a'];
                     }
+                    console.log(clan['tag']);
                     newrow.append(Mustache.render(time_template_clan, {
-                        title: title,
-                        clan: clan,
+                        round: title,
+                        clan_tag: clan['tag'],
                         time: time.shortTime(),
-                        WR: clan['arena_stat']['wins_percent'],
+                        WR: clan['arena_stat']['wins_percent'] + '%',
                         elo: clan['elo_' + province_info['max_vehicle_level']],
                         battles: clan['arena_stat']['battles_count']
                     }));
                 } else {
                     newrow.append(Mustache.render(time_template_noclan, {
-                        title: title,
+                        round: title,
                         time: time.shortTime(),
                     }));
                 }
             }
-            // if(province_info['prime_time'].substr(3,2) == 0) {
-            //     newrow.css('backgroud-color', '#000');
-            //     province.css('backgroud-color', '#000');
-            // }
-            // table.append($("<tr style='background-color: #0F0'></tr>").append(newrow));
             table.append($("<tr></tr>").append(newrow));
             provinces.append(province);
         }
     });
+    last_updated = Date.now();
 };
 
-auto_refresh = 'Off';
+// Auto refresh switch
+var auto_refresh = 'Off';
+var interval;
 enable_auto = function () {
     if (auto_refresh == 'Off') {
         interval = setInterval(refresh_clan, 30000);
@@ -148,7 +160,30 @@ enable_auto = function () {
     }
 };
 
+// select active date
+$("#date-selector").find("a").click(function (e) {
+    var menu_item = document.getElementById('selected-date');
+    var ds = document.getElementById('date-selector');
+    var items = ds.getElementsByTagName('li');
+    for(var i=0; i<items.length; i++) {
+        items[i].classList.remove('active')
+    }
+    this.parentNode.classList.add('active');
+    selected_date = this.innerText;
+    refresh_clan();
+    menu_item.innerText = "Date: " + this.innerText;
+});
+
+// last updated
+last_updated = "Never";
+last_updated_function = function() {
+    document.getElementById('last-updated').getElementsByTagName('span')[0].innerText =
+        parseInt(Math.ceil((Date.now() - last_updated) / 1000)) + ' seconds ago';
+};
+
+// Auto start on load
 $(function () {
     refresh_clan();
     enable_auto();
+    setInterval(last_updated_function, 1000);
 });

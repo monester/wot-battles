@@ -1,36 +1,55 @@
 {% load staticfiles %}<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>World of Tanks battle list</title>
-    <link rel="stylesheet" href="{% static 'wot_clan_battles/bootstrap.min.css' %}" />
-    <link rel="stylesheet" href="{% static 'wot_clan_battles/bootstrap-theme.min.css' %}">
-    <link rel="stylesheet" href="{% static 'wot_clan_battles/bootstrap-tagsinput.css' %}"/>
-    <link rel="stylesheet" href="{% static 'wot_clan_battles/app.css' %}"/>
-  </head>
-  <body>
-<nav class="navbar  navbar-defautl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World of Tanks battle list</title>
+  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}"/>
+  <link rel="stylesheet" href="{% static 'css/bootstrap-theme.min.css' %}">
+  <link rel="stylesheet" href="{% static 'wot_clan_battles/bootstrap-tagsinput.css' %}"/>
+  <link rel="stylesheet" href="{% static 'wot_clan_battles/app.css' %}"/>
+</head>
+<body>
+<nav class="navbar navbar-default">
   <div class="container-fluid">
-    <!-- Brand and toggle get grouped for better mobile display -->
     <div class="navbar-header">
-      <a class="navbar-brand" href="#">Clan Battles</a>
-      <form class="navbar-form navbar-left" role="search" action="/" method="get">
-        <div class="form-group">
-          <input type="text" class="form-control" placeholder="ClanTag" name="tag" value="{{ request.GET.tag }}">
-        </div>
-        <button type="submit" class="btn btn-default">Show</button>
-      </form>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+              data-target="#bs-navbar-collapse" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="#">SMIRK Clan battles</a>
     </div>
-  </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-navbar-collapse">
+      <ul class="nav navbar-nav">
+        <li><a href="#" onclick="refresh_clan()"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Refresh</a></li>
+        <li><a href="#" onclick="enable_auto()" id="enable-auto">Auto update: on</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+             aria-expanded="false" id="selected-date">Date: latest <span class="caret"></span></a>
+          <ul class="dropdown-menu" id="date-selector">
+            <li class="active"><a href="#">latest</a></li>
+            <li><a href="#">2016-11-21</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <p class="navbar-text" id="last-updated">Updated: <span>1 second ago</span></p>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
 </nav>
 
 {% block content %}{% endblock %}
-    <script src="{% static "wot_clan_battles/js/jquery.min.js" %}"></script>
-    <script src="{% static "wot_clan_battles/js/bootstrap.min.js" %}"></script>
-    <script src="{% static "wot_clan_battles/js/bootstrap-tagsinput.js" %}"></script>
-    <script src="{% static "wot_clan_battles/js/mustache.min.js" %}"></script>
-    <script src="{% static "wot_clan_battles/js/app.js" %}"></script>
-  </body>
+<script src="{% static "js/jquery.min.js" %}"></script>
+<script src="{% static "js/bootstrap.min.js" %}"></script>
+<script src="{% static "wot_clan_battles/js/bootstrap-tagsinput.js" %}"></script>
+<script src="{% static "wot_clan_battles/js/mustache.min.js" %}"></script>
+<script src="{% static "wot_clan_battles/js/app.js" %}"></script>
+</body>
 </html>

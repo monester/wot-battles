@@ -2,30 +2,33 @@
 {% load tz %}
 
 {% block content %}
-    <h3>Battles for clan SMIRK</h3>
-    <p>
-        <button onclick="refresh_clan()">refresh</button>
-        <button onclick="enable_auto()" id="enable-auto">Auto-refresh: Off</button>
-        <select id="table-date" style="display: inline" onchange="refresh_clan()">
-            <option selected value="latest">latest</option>
-            <option value="2016-11-21">2016-11-21</option>
-        </select>
-    </p>
-
-    <div class="timetable" data-clan-id="35039">
-        <div class="timetable-provinces">
-            <div class="timetable-province"><a href="#">RU2 Борисоглебск</a></div>
-        </div>
-        <div class="timetable-times"><table>
-            <tr>
-                <td class="timetable-row">
-                    <div class="timetable-time">12:00</div>
-                </td>
-            </tr><tr>
-                <td class="timetable-row">
-                    <div class="timetable-time"><div><span>12:00:00</span>1/64 CLAN_ID</div></div>
-                </td>
-            </tr></table>
-        </div>
+  <div class="timetable" data-clan-id="35039">
+    <div class="timetable-provinces">
+      <div class="timetable-province"><a href="#">RU2 Борисоглебск</a></div>
     </div>
+    <div class="timetable-times">
+      <table>
+        <tr>
+          <td class="timetable-row">
+            <div class="timetable-cell">12:00</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="timetable-row">
+            <div class="timetable-cell">
+              <div class="timetable-cell-header">
+                <span>1/16</span><span>18:00:00</span>
+              </div>
+              <div class="timetable-cell-opponent">
+                <span>SKIPPED</span>
+              </div>
+              <div class="timetable-cell-stats">
+                <span>55</span><span>155</span><span>1455</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
 {% endblock %}
