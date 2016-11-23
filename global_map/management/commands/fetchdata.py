@@ -1,3 +1,4 @@
+# coding=utf-8
 from django.conf import settings
 from datetime import datetime, timedelta, time
 import pytz
@@ -133,6 +134,43 @@ class ProvinceInfo(dict):
 class TournamentInfo(dict):
     def __init__(self, province_id, seq=None, **kwargs):
         super(TournamentInfo, self).__init__(seq=None, **kwargs)
+        # {u'applications_decreased': False,
+        #  u'apply_error_message': u'Чтобы подать заявку, войдите на сайт.',
+        #  u'arena_name': u'Аэродром',
+        #  u'available_applications_number': 0,
+        #  u'battles': [],
+        #  u'can_apply': False,
+        #  u'front_id': u'campaign_05_ru_west',
+        #  u'is_apply_visible': False,
+        #  u'is_superfinal': False,
+        #  u'next_round': None,
+        #  u'next_round_start_time': u'19:15:00.000000',
+        #  u'owner': None,
+        #  u'pretenders': [{u'arena_battles_count': 49,
+        #    u'arena_wins_percent': 38.78,
+        #    u'cancel_action_id': None,
+        #    u'clan_id': 94365,
+        #    u'color': u'#b00a10',
+        #    u'division_id': None,
+        #    u'elo_rating_10': 1155,
+        #    u'elo_rating_6': 1175,
+        #    u'elo_rating_8': 1259,
+        #    u'emblem_url': u'https://ru.wargaming.net/clans/media/clans/emblems/cl_365/94365/emblem_64x64_gm.png',
+        #    u'fine_level': 0,
+        #    u'id': 94365,
+        #    u'landing': True,
+        #    u'name': u'Deadly Decoy',
+        #    u'tag': u'DECOY',
+        #    u'xp': None}],
+        #  u'province_id': u'herning',
+        #  u'province_name': u'\u0425\u0435\u0440\u043d\u0438\u043d\u0433',
+        #  u'province_pillage_end_datetime': None,
+        #  u'province_revenue': 0,
+        #  u'revenue_level': 0,
+        #  u'round_number': 1,
+        #  u'size': 32,
+        #  u'start_time': u'19:00:00',
+        #  u'turns_till_primetime': 11}
         self.update(requests.get(
             'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
 
@@ -232,10 +270,11 @@ def update_clan(clan_id):
                 'wins_percent': info['arena_wins_percent'],
                 'battles_count': info['arena_battles_count'],
             })
-        ClanArenaStat.objects.update_or_create(clan_id=ti['owner']['id'], arena_id=pa.province.arena_id, defaults={
-            'wins_percent': ti['owner']['arena_wins_percent'],
-            'battles_count': ti['owner']['arena_battles_count'],
-        })
+        if ti['owner']:
+            ClanArenaStat.objects.update_or_create(clan_id=ti['owner']['id'], arena_id=pa.province.arena_id, defaults={
+                'wins_percent': ti['owner']['arena_wins_percent'],
+                'battles_count': ti['owner']['arena_battles_count'],
+            })
 
 
 class Command(BaseCommand):

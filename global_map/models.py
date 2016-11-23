@@ -83,7 +83,7 @@ class Province(models.Model):
         return {
             'province_id': self.province_id,
             'province_name': self.province_name,
-            'province_owner': self.province_owner.as_json(),
+            'province_owner': self.province_owner and self.province_owner.as_json(),
             'arena_id': self.arena_id,
             'arena_name': self.arena_name,
             'prime_time': self.prime_time,
@@ -105,6 +105,47 @@ class ClanArenaStat(models.Model):
         }
 
 
+# CLEAN MAP
+# [{u'active_battles': [],
+#   u'arena_id': u'10_hills',
+#   u'arena_name': u'\u0420\u0443\u0434\u043d\u0438\u043a\u0438',
+#   u'attackers': [],
+#   u'battles_start_at': u'2016-11-23T19:15:00',
+#   u'competitors': [192,
+#    3861,
+#    45846,
+#    61752,
+#    80424,
+#    82433,
+#    146509,
+#    170851,
+#    179351,
+#    190526,
+#    200649,
+#    201252,
+#    219575],
+#   u'current_min_bet': 0,
+#   u'daily_revenue': 0,
+#   u'front_id': u'campaign_05_ru_west',
+#   u'front_name': u'\u041a\u0430\u043c\u043f\u0430\u043d\u0438\u044f: \u0417\u0430\u043f\u0430\u0434',
+#   u'is_borders_disabled': False,
+#   u'landing_type': u'tournament',
+#   u'last_won_bet': 0,
+#   u'max_bets': 32,
+#   u'neighbours': [u'herning', u'odense', u'uddevalla'],
+#   u'owner_clan_id': None,
+#   u'pillage_end_at': None,
+#   u'prime_time': u'19:15',
+#   u'province_id': u'aarhus',
+#   u'province_name': u'\u041e\u0440\u0445\u0443\u0441',
+#   u'revenue_level': 0,
+#   u'round_number': None,
+#   u'server': u'RU6',
+#   u'status': None,
+#   u'uri': u'/#province/aarhus',
+#   u'world_redivision': False}]
+
+
 class ProvinceAssault(models.Model):
     date = models.DateField()               # On what date Assault was performed
     province = models.ForeignKey(Province,  # On what province
@@ -113,7 +154,7 @@ class ProvinceAssault(models.Model):
     clans = models.ManyToManyField(Clan)    # By which clans
     prime_time = models.TimeField()
     arena_id = models.CharField(max_length=255)
-    round_number = models.IntegerField()
+    round_number = models.IntegerField(null=True)
     landing_type = models.CharField(max_length=255, null=True)
 
     class Meta:
