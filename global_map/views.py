@@ -258,7 +258,7 @@ class ListBattles(TemplateView):
 
         # Fetch clans from unofficial API
         for province_id, province in provinces_data.items():
-            province['attackers'] = TournamentInfo(province_id)
+            province['competitors'] = TournamentInfo(province_id).clans_info().keys()
 
         # **** Battle section *****
         provinces = {}
