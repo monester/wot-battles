@@ -17,7 +17,7 @@ wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 logger = logging.getLogger(__name__)
 
 
-def update_province(front_id, assault, province_data):
+def update_province(front_id, assault, province_data, tournament_info):
     province_id = province_data['province_id']
     province_name = province_data['province_name']
     province_owner = province_data['owner_clan_id'] and \
@@ -51,11 +51,25 @@ def update_province(front_id, assault, province_data):
         for clan_id in competitors + attackers
     }
 
+
     for active_battle in active_battles:
         clan_a_id = active_battle['clan_a']['clan_id']
         clan_b_id = active_battle['clan_b']['clan_id']
         clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
         clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
+
+    # GET clans from unofficial WG API
+    ti_clans = {}
+    for battle in tournament_info['battles']:
+        clan_a_id = battle['first_competitor']['id']
+        ti_clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
+        if 'second_competitor' in battle and battle['second_competitor']:
+            clan_b_id = battle['second_competitor']['id']
+            ti_clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
+
+    if clans != ti_clans:
+        logger.warn("Official API clans: != tournament_info clans, merging to single list")
+        clans.update(ti_clans)
 
     dt = battles_start_at
     prime_dt = dt.replace(hour=province.prime_time.hour, minute=province.prime_time.minute)
@@ -239,12 +253,14 @@ def update_clan(clan_id):
     for front_id, provinces in province_ids.items():
         province_ids[front_id] = [provinces[i:i+100] for i in range(0, len(provinces), 100)]
 
+    # Unofficial WG API responses
+    tournaments_info = {}
+
     # fetch all provinces and store records to DB
     clans = []
     for front_id, provinces_sets in province_ids.items():
         for provinces_set in provinces_sets:
             province_set = dict(provinces_set)
-            print province_set
             try:
                 logger.debug("Query WG API for provinces: %s", ','.join(province_set.keys()))
                 provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(province_set.keys()))
@@ -253,7 +269,9 @@ def update_clan(clan_id):
             else:
                 for province_data in provinces:
                     province_id = province_data['province_id']
-                    update_province(front_id, province_set[province_id], province_data)  # update DB
+                    tournaments_info[province_id] = TournamentInfo(province_id)
+                    # update DB
+                    update_province(front_id, province_set[province_id], province_data, tournaments_info[province_id])
                     clans.extend(province_data['attackers'])
                     clans.extend(province_data['competitors'])
                     if province_data['owner_clan_id']:
@@ -280,8 +298,7 @@ def update_clan(clan_id):
             })
 
     # Update clan stats from unofficial API clans WR on maps
-    for pa in ProvinceAssault.objects.filter(clans=clan, date=datetime.now(tz=pytz.UTC).date()):
-        ti = TournamentInfo(pa.province.province_id)
+    for ti in tournaments_info.values():
         for clan_id, info in ti.clans_info().items():
             ClanArenaStat.objects.update_or_create(clan_id=clan_id, arena_id=pa.province.arena_id, defaults={
                 'wins_percent': info['arena_wins_percent'],
