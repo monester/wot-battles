@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import json
 from django.views.generic import TemplateView, View
 from global_map.models import Clan, ProvinceTag
-import urllib2
+import requests
 from collections import OrderedDict, defaultdict
 from django.conf import settings
 from retrying import retry
@@ -15,6 +15,24 @@ from django.http import JsonResponse, QueryDict
 
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
+
+
+class TournamentInfo(dict):
+    def __init__(self, province_id, seq=None, **kwargs):
+        super(TournamentInfo, self).__init__(seq=None, **kwargs)
+        self.update(requests.get(
+            'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
+
+    def clans_info(self):
+        clans = {}
+        for battle in self['battles']:
+            if 'first_competitor' in battle and battle['first_competitor']:
+                clans[battle['first_competitor']['id']] = battle['first_competitor']
+            if 'second_competitor' in battle and battle['second_competitor']:
+                clans[battle['second_competitor']['id']] = battle['second_competitor']
+        for clan in self['pretenders'] or []:
+            clans[clan['id']] = clan
+        return clans
 
 
 class TagView(View):
@@ -201,8 +219,7 @@ class ListBattles(TemplateView):
             with open(path) as f:
                 data = json.load(f)
         else:
-            response = urllib2.urlopen('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id)
-            data = json.loads(response.read())
+            data = requests.get('https://ru.wargaming.net/globalmap/game_api/clan/%s/battles' % clan_id).json()
         return data
 
     def get_context_data(self, **kwargs):
@@ -238,6 +255,10 @@ class ListBattles(TemplateView):
             plist = list(set(province_list[front_id]))  # make list unique
             for p in self._provinces(front_id=front_id, province_id=plist, clan_id=clan_id):
                 provinces_data[p['province_id']] = p
+
+        # Fetch clans from unofficial API
+        for province_id, province in provinces_data.items():
+            province['attackers'] = TournamentInfo(province_id)
 
         # **** Battle section *****
         provinces = {}
