@@ -157,7 +157,7 @@ def update_clan(clan_id):
     globalmap_info = wot.globalmap.info()
     if globalmap_info['state'] == 'frozen':
         logger.info("Map is frozen, skipping update")
-        # return
+        return
 
     # fill fronts info
     try:
@@ -177,9 +177,9 @@ def update_clan(clan_id):
 
     # fetch clan battles
     try:
-        clan_provinces = wot.globalmap.clanprovinces(clan_id=clan_id, language='ru')
+        clan_provinces = wot.globalmap.clanprovinces(clan_id=clan_id, language='ru')[str(clan_id)]
         if clan_provinces:
-            for p in clan_provinces[str(clan_id)]:
+            for p in clan_provinces:
                 province_ids.setdefault(p['front_id'], []).append((p['province_id'], None))
     except RequestError as e:
         logger.error("Import error wot.globalmap.clanprovinces returned %s (%s)",
