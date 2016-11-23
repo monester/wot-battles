@@ -46,10 +46,16 @@ def update_province(front_id, assault, province_data):
         'prime_time': time(*map(int, prime_time.split(':'))),  # UTC time
     })[0]
 
-    clans = set([
-        Clan.objects.get_or_create(pk=clan_id)[0]
+    clans = {
+        clan_id: Clan.objects.get_or_create(pk=clan_id)[0]
         for clan_id in competitors + attackers
-    ])
+    }
+
+    for active_battle in active_battles:
+        clan_a_id = active_battle['clan_a']['clan_id']
+        clan_b_id = active_battle['clan_b']['clan_id']
+        clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
+        clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
 
     dt = battles_start_at
     prime_dt = dt.replace(hour=province.prime_time.hour, minute=province.prime_time.minute)
@@ -66,25 +72,24 @@ def update_province(front_id, assault, province_data):
             assault.round_number = round_number
             assault.save()
         else:
-            assault = ProvinceAssault.objects.create(
-                province=province,
-                date=date,
+            # TODO: add get to search provinces
+            assault = ProvinceAssault.objects.get_or_create(province=province, date=date, defaults=dict(
                 current_owner=province_owner,
                 prime_time=province.prime_time,
                 arena_id=province.arena_id,
                 landing_type=landing_type,
                 round_number=round_number,
-            )
+            ))[0]
             logger.debug("update_province: created assault for '%s' {current_owner: '%s', date: '%s'}",
                          province_id, province.province_owner, date)
 
         for active_battle in active_battles:
-            created, pb = ProvinceBattle.objects.get_or_create(
+            pb, created = ProvinceBattle.objects.get_or_create(
                 assault=assault,
                 province=province,
                 arena_id=arena_id,
-                clan_a=Clan.objects.get_or_create(pk=active_battle['clan_a']['clan_id'])[0],
-                clan_b=Clan.objects.get_or_create(pk=active_battle['clan_b']['clan_id'])[0],
+                clan_a=clans[active_battle['clan_a']['clan_id']],
+                clan_b=clans[active_battle['clan_b']['clan_id']],
                 start_at=datetime.strptime(active_battle['start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC),
                 round=active_battle['round'],
             )
@@ -92,12 +97,12 @@ def update_province(front_id, assault, province_data):
                 logger.debug("update_province: created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
-        if set(assault.clans.all()) != clans:
+        if set(assault.clans.all()) != set(clans.values()):
             if clans:
                 assault.clans.clear()
-                assault.clans.add(*clans)
+                assault.clans.add(*clans.values())
                 logger.debug("update_province: add clans to province '%s': %s",
-                             province_id, ' '.join([repr(c) for c in clans]))
+                             province_id, ' '.join([repr(c) for c in clans.values()]))
             else:
                 assault.clans.clear()
                 logger.debug("update_province: no more clans assaulting province '%s', cleared clans", province_id)
@@ -239,6 +244,7 @@ def update_clan(clan_id):
     for front_id, provinces_sets in province_ids.items():
         for provinces_set in provinces_sets:
             province_set = dict(provinces_set)
+            print province_set
             try:
                 logger.debug("Query WG API for provinces: %s", ','.join(province_set.keys()))
                 provinces = wot.globalmap.provinces(front_id=front_id, province_id=','.join(province_set.keys()))
