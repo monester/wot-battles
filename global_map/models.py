@@ -79,6 +79,25 @@ class Province(models.Model):
     def __repr__(self):
         return '<Province: %s>' % self.province_id
 
+    def __str__(self):
+        return self.province_id
+
+    def force_update(self):
+        data = wot.globalmap.provinces(
+            front_id=self.front.front_id, province_id=self.province_id,
+            fields='arena_id,arena_name,province_name,prime_time,owner_clan_id,server')
+
+        if len(data) == 0:
+            raise Exception("Province '%s' not found on front '%s'", self.province_id, self.front.front_id)
+        data = data[0]
+
+        self.arena_id = data['arena_id']
+        self.arena_name = data['arena_name']
+        self.province_name = data['province_name']
+        self.prime_time = data['prime_time']
+        self.province_owner = Clan.objects.get_or_create(pk=data['owner_clan_id'])[0]
+        self.server = data['server']
+
     def as_json(self):
         return {
             'province_id': self.province_id,
@@ -300,3 +319,11 @@ class ProvinceTag(models.Model):
 def fetch_minimum_clan_info(sender, instance, **kwargs):
     if (not instance.tag or not instance.title) and instance.pk:
         instance.force_update()
+
+
+@receiver(pre_save, sender=Province)
+def fetch_minimum_clan_info(sender, instance, **kwargs):
+    required_fields =  ['province_name', 'arena_id', 'arena_name', 'prime_time', 'server']
+    for field in required_fields:
+        if not getattr(instance, field):
+            instance.force_update()
