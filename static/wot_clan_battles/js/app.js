@@ -57,6 +57,7 @@ refresh_clan = function (force_update) {
 
         time_template_clan = template;
         time_template_noclan = template;
+        var time_template_skipped = template;
 
         var province_tmpl = "<div class='timetable-province'><strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
             "{{server}} | {{ name }} | {{ arena_name }} | {{ mode }}</a></strong></div>";
@@ -132,10 +133,18 @@ refresh_clan = function (force_update) {
                         battles: clan['arena_stat']['battles_count']
                     }));
                 } else {
-                    newrow.append(Mustache.render(time_template_noclan, {
-                        round: title,
-                        time: time.shortTime(),
-                    }));
+                    if(battle['winner'] && battle['winner']['clan_id'] == clan_id) {
+                        newrow.append(Mustache.render(time_template_skipped, {
+                            round: title,
+                            time: time.shortTime(),
+                            clan_tag: 'SKIPPED'
+                        }));
+                    } else {
+                        newrow.append(Mustache.render(time_template_noclan, {
+                            round: title,
+                            time: time.shortTime()
+                        }));
+                    }
                 }
             }
             table.append($("<tr></tr>").append(newrow));

@@ -70,6 +70,7 @@ class ListBattlesJson(View):
             'time_range': [min_time, max_time],
             'assaults': sorted(
                 assaults,
-                key=lambda v: (v['province_info']['prime_time'].minute == 15, v['province_info']['prime_time'])
+                key=lambda v: (v['province_info']['prime_time'].minute == 15, v['province_info']['prime_time'],
+                               v['province_info']['province_id'])
             ),
         })

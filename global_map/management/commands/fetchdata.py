@@ -107,7 +107,8 @@ class TournamentInfo(dict):
             else:
                 # DEBUG ISSUE
                 import json
-                logger.critical("NO FIRST COMPETITOR IN BATTLE: province %s, battle: %s", json.dumps(battle))
+                logger.critical("NO FIRST COMPETITOR IN BATTLE: province %s, battle: %s",
+                                self['province_id'], json.dumps(battle))
             if 'second_competitor' in battle and battle['second_competitor']:
                 clans[battle['second_competitor']['id']] = battle['second_competitor']
         if isinstance(self['pretenders'], list):

@@ -207,8 +207,8 @@ class ProvinceAssault(models.Model):
         max_rounds = len(self.planned_times)
         existing_battles = {b.round_datetime: b for b in self.battles.filter(Q(clan_a=clan) | Q(clan_b=clan))}
         res = []
-        for i in range(max_rounds):
-            time = self.planned_times[i]
+        for round_number in range(1, max_rounds + 1):
+            time = self.planned_times[round_number - 1]
             if time in existing_battles:
                 res.append(existing_battles[time])
             else:
@@ -216,9 +216,11 @@ class ProvinceAssault(models.Model):
                     assault=self,
                     province=self.province,
                     arena_id=self.arena_id,
-                    round=i + 1,
+                    round=round_number + 1,
                 )
-                if i == max_rounds - 1 and self.current_owner:
+                if self.round_number >= round_number :
+                    pb.winner = clan
+                if round_number == max_rounds and self.current_owner:
                     pb.clan_a = self.current_owner
                     pb.clan_b = clan
                 res.append(pb)
@@ -303,6 +305,7 @@ class ProvinceBattle(models.Model):
             'real_start_at': self.start_at,
             'clan_a': clan_a.as_json_with_arena(self.arena_id) if clan_a else None,
             'clan_b': clan_b.as_json_with_arena(self.arena_id) if clan_b else None,
+            'winner': self.winner.as_json() if self.winner else None
         }
 
 
