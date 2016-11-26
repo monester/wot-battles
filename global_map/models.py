@@ -218,7 +218,7 @@ class ProvinceAssault(models.Model):
                     arena_id=self.arena_id,
                     round=round_number,
                 )
-                if self.round_number >= round_number:
+                if self.round_number >= round_number and datetime.now(tz=pytz.UTC) >= self.datetime:
                     pb.winner = clan
                 if round_number == max_rounds and self.current_owner:
                     pb.clan_a = self.current_owner
