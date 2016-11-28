@@ -69,19 +69,31 @@ class ListBattlesJson(View):
             from global_map.management.commands.fetchdata import update_clan
             update_clan(clan.id)
 
+        pa_query = ProvinceAssault.objects.distinct('province').order_by('province')
         if date:
             date = datetime_date(*[int(i) for i in date.split('-')])
-            assaults = ProvinceAssault.objects.filter(date=date) \
-                .filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
+            assaults = [
+                assault.as_clan_json(clan, current_only=False)
+                for assault in pa_query.filter(date=date).filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
+            ]
         else:
             date = datetime.now().date()
-            assaults = ProvinceAssault.objects.filter(date=date).filter(Q(clans=clan) | Q(current_owner=clan))
+            assaults = [
+                assault.as_clan_json(clan)
+                for assault in pa_query.filter(date=date).filter(Q(clans=clan) | Q(current_owner=clan))
+            ]
 
-        times = []
-        for assault in assaults:
-            times.extend(assault.planned_times)
+        # Remove assaults without battles
+        for assault in assaults[::]:
+            if not assault['battles']:
+                logger.debug("Removing assault on province %s", assault['province_info']['province_id'])
+                assaults.remove(assault)
 
-        assaults = [assault.as_clan_json(clan) for assault in set(assaults)]
+        times = [
+            battle['planned_start_at']
+            for assault in assaults
+            for battle in assault['battles']
+        ]
 
         if times:
             min_time = min(times)
@@ -95,7 +107,7 @@ class ListBattlesJson(View):
             'time_range': [min_time, max_time],
             'assaults': sorted(
                 assaults,
-                key=lambda v: (v['province_info']['prime_time'].minute == 15, v['province_info']['prime_time'],
+                key=lambda v: (v['province_info']['prime_time'].minute == 15, v['battles'][0]['planned_start_at'],
                                v['province_info']['province_id'])
             ),
         })

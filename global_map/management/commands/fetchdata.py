@@ -166,7 +166,6 @@ def update_province(province, province_data):
         'arena_name': arena_name,
         'server': server,
         'prime_time': time(*map(int, prime_time.split(':'))),  # UTC time
-        'status': status,
     })[0]
 
     clans = {
@@ -198,6 +197,7 @@ def update_province(province, province_data):
             arena_id=province.arena_id,
             landing_type=landing_type,
             round_number=round_number,
+            status=status,
         ))
         if created:
             logger.debug("created assault for '%s' {current_owner: '%s', date: '%s', 'attackers_count': %s}",

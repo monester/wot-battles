@@ -214,6 +214,7 @@ class ProvinceAssault(models.Model):
             if time in existing_battles:
                 res.append(existing_battles[time])
             else:
+                # create FAKE planned battle
                 pb = ProvinceBattle(
                     assault=self,
                     province=self.province,
@@ -232,8 +233,14 @@ class ProvinceAssault(models.Model):
     def max_rounds(self):
         return len(self.planned_times)
 
-    def as_clan_json(self, clan):
-        battles = [b.as_json() for b in self.clan_battles(clan)]
+    def as_clan_json(self, clan, current_only=True):
+        if current_only:
+            battles = [b.as_json() for b in self.clan_battles(clan)
+                       if b.round >= self.round_number and self.status != 'FINISHED'
+                       or self.datetime > datetime.now(tz=pytz.UTC)]
+        else:
+            battles = [b.as_json() for b in self.clan_battles(clan)]
+
         if self.current_owner == clan:
             mode = 'defence'
             battles = battles[-1:-2:-1]
