@@ -263,10 +263,11 @@ def collect_clan_related_provinces(clan):
     # fetch existing ProvinceAssault
     now = datetime.now(tz=pytz.UTC)
     for pa in ProvinceAssault.objects.order_by('province', '-date').distinct('province'):
-        if pa.datetime >= now:  # battle is planned
-            provinces.append(pa.province)
-        elif pa.datetime + timedelta(hours=6) >= now:  # battle is running
-            provinces.append(pa.province)
+        if clan in pa.clans or pa.current_owner == clan:
+            if pa.datetime >= now:  # battle is planned
+                provinces.append(pa.province)
+            elif pa.datetime + timedelta(hours=6) >= now:  # battle is running
+                provinces.append(pa.province)
 
     return list(set(provinces))
 
