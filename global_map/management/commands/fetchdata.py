@@ -5,7 +5,7 @@ import pytz
 from django.core.management.base import BaseCommand, CommandError
 
 from collections import defaultdict
-from django.db.models import Q
+import json
 import requests
 import wargaming
 import logging
@@ -205,9 +205,8 @@ def update_province(province, province_data):
 
         if status == 'FINISHED' and battles_start_at > assault.datetime:
             from django.core.mail import mail_admins
-            import json
             mail_admins('Update finished Assault for %s' % province_id,
-                      json.dumps(province_data, sort_keys=True, indent=4))
+                        json.dumps(province_data, sort_keys=True, indent=4))
             logger.error("Status FINISHED for province attack on running assault, do not update assault")
             return
 
@@ -338,7 +337,7 @@ def update_clan(clan_id):
 
     # Get list of all provinces belonging to clan: defence or attack
     provinces_list = collect_clan_related_provinces(clan)
-    logger.info('Clan %s related provinces: %s', clan, map(str, provinces_list))
+    logger.info('Clan %s related provinces: %s', repr(clan), json.dumps(map(str, provinces_list)))
 
     # fetch all provinces data
     provinces_data = get_provinces_data(provinces_list)

@@ -42,9 +42,18 @@ class ListBattles(TemplateView):
     def get_context_data(self, **kwargs):
         context = super(ListBattles, self).get_context_data(**kwargs)
         if 'clan_tag' in kwargs:
-            context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
+            try:
+                context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
+            except Clan.MultipleObjectsReturned:
+                duplicates = Clan.objects.filter(tag=kwargs['clan_tag'])
+                logger.critical('Returned multiple records for same clan tag %s: IDs: %s. Forcing to update',
+                                kwargs['clan_tag'], [c for c in duplicates],
+                                exc_info=True)
+                for c in duplicates:
+                    c.force_update()
+                context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
         else:
-            context['clan_id'] = '35039'
+            context['clan_id'] = kwargs.get('clan_id', '35039')
         return context
 
 
