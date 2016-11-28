@@ -225,7 +225,7 @@ def update_province(province, province_data):
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
         # if owner in attackers/competitors list
-        if assault.current_owner in clans:
+        if assault.current_owner.id in clans:
             del clans[assault.current_owner.id]
 
         if set(assault.clans.all()) != set(clans.values()):
