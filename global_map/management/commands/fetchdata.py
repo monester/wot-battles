@@ -199,6 +199,15 @@ def update_province(province, province_data):
             round_number=round_number,
             status=status,
         ))
+
+        # check for previous Assaults
+        running = ProvinceAssault.objects.filter(province=province, status='RUNNING')
+        for pa in running:
+            if pa == assault:  # this is actual Assault
+                continue
+            pa.status = 'FINISHED'
+            pa.save()
+
         if created:
             logger.debug("created assault for '%s' {current_owner: '%s', date: '%s', 'attackers_count': %s}",
                          province_id, province.province_owner, date, len(province_data['attackers']))
