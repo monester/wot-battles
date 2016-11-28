@@ -35,6 +35,7 @@ class Clan(models.Model):
         clan_info = wgn.clans.info(clan_id=self.pk)[str(self.pk)]
         self.tag = clan_info['tag']
         self.title = clan_info['name']
+        self.save()
 
     def as_json(self):
         return {

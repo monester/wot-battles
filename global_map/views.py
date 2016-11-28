@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, date as datetime_date
+import logging
 
 from django.views.generic import TemplateView, View
 from django.conf import settings
@@ -9,6 +10,7 @@ from django.db.models import Count, Q
 import wargaming
 from global_map.models import Clan, ProvinceTag, ProvinceAssault
 
+logger = logging.getLogger(__name__)
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
 
