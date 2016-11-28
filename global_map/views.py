@@ -56,6 +56,12 @@ class ListBattles(TemplateView):
                 context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
         else:
             context['clan_id'] = kwargs.get('clan_id', '35039')
+
+        context['dates'] = [
+            i.date.strftime('%Y-%m-%d')
+            for i in ProvinceAssault.objects.only('date').order_by('-date').distinct('date')[0:20]
+        ]
+
         return context
 
 

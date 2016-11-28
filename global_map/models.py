@@ -196,7 +196,12 @@ class ProvinceAssault(models.Model):
             round_number = self.round_number
         else:
             round_number = 1  # Bug-Fix: WGAPI return round number from previous day
-        total_rounds = round_number + int(math.ceil(math.log(len(self.clans.all()), 2))) - 1
+
+        clans_count = len(self.clans.all())
+        if clans_count > 0:
+            total_rounds = round_number + int(math.ceil(math.log(clans_count, 2))) - 1
+        else:
+            total_rounds = 0
         times = [
             self.datetime + timedelta(minutes=30) * i
             for i in range(0, total_rounds)

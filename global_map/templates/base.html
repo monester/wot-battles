@@ -34,7 +34,7 @@
              aria-expanded="false" id="selected-date">Date: latest <span class="caret"></span></a>
           <ul class="dropdown-menu" id="date-selector">
             <li class="active"><a href="#">latest</a></li>
-            <li><a href="#">2016-11-21</a></li>
+            {% for date in dates %}<li><a href="#">{{ date }}</a></li>{% endfor %}
           </ul>
         </li>
       </ul>
