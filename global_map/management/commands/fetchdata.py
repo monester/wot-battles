@@ -350,14 +350,17 @@ def update_clan(clan_id):
 class Command(BaseCommand):
     help = 'Save map to cache'
 
+    def add_arguments(self, parser):
+        parser.add_argument('clan_id', nargs='*', type=int)
+
     def handle(self, *args, **options):
         from time import time
         start = time()
         logger.info("Starting import at %s" % datetime.now(tz=pytz.UTC))
-        clan_id = 35039  # SMIRK
-        try:
-            update_clan(clan_id)
-        except Exception:
-            logger.critical("Unknown error", exc_info=True)
+        for clan_id in options['clan_id'] or [35039]:
+            try:
+                update_clan(clan_id)
+            except Exception:
+                logger.critical("Unknown error", exc_info=True)
         logger.info("Finished import at %s, seconds elapsed %s",
                     datetime.now(tz=pytz.UTC), time()-start)
