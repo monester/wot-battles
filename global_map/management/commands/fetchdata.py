@@ -224,6 +224,10 @@ def update_province(province, province_data):
                 logger.debug("created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
+        # if owner in attackers/competitors list
+        if assault.current_owner in clans:
+            del clans[assault.current_owner.id]
+
         if set(assault.clans.all()) != set(clans.values()):
             if clans:
                 assault.clans.clear()
