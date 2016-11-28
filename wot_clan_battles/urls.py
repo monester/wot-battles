@@ -22,6 +22,8 @@ from global_map.views import ListBattles, ListBattlesJson, TagView
 
 urlpatterns = [
     url(r'^$', ListBattles.as_view()),
+    url(r'^(?P<clan_id>\d+)/$', ListBattles.as_view()),
+    url(r'^(?P<clan_tag>[A-Z0-9_\-]{2,5})/$', ListBattles.as_view()),
     url(r'^tag/', TagView.as_view()),
     url(r'^battles/$', ListBattlesJson.as_view()),
     url(r'^battles/(?P<date>\d{4}-\d{2}-\d{2})/$', ListBattlesJson.as_view()),

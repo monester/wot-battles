@@ -39,11 +39,25 @@ class ListBattles(TemplateView):
     template_name = 'list_battles.html'
     cached_time = None
 
+    def get_context_data(self, **kwargs):
+        context = super(ListBattles, self).get_context_data(**kwargs)
+        if 'clan_tag' in kwargs:
+            context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
+        else:
+            context['clan_id'] = '35039'
+        return context
+
 
 class ListBattlesJson(View):
     def get(self, *args, **kwargs):
         date = kwargs.get('date')
-        clan = Clan.objects.get(pk=35039)
+        clan = Clan.objects.get(pk=int(self.request.GET.get('clan_id', 35039)))
+        force_update = self.request.GET.get('force_update') == 'true'
+
+        if force_update:
+            from global_map.management.commands.fetchdata import update_clan
+            update_clan(clan.id)
+
         if date:
             date = datetime_date(*[int(i) for i in date.split('-')])
             assaults = ProvinceAssault.objects.filter(date=date) \

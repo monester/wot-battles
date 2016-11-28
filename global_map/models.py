@@ -175,6 +175,7 @@ class ProvinceAssault(models.Model):
     arena_id = models.CharField(max_length=255)
     round_number = models.IntegerField(null=True)
     landing_type = models.CharField(max_length=255, null=True)
+    status = models.CharField(max_length=20, default='FINISHED', null=True)
 
     class Meta:
         ordering = ('date', )
@@ -322,6 +323,15 @@ class ProvinceTag(models.Model):
 def fetch_minimum_clan_info(sender, instance, **kwargs):
     if (not instance.tag or not instance.title) and instance.pk:
         instance.force_update()
+    elif not instance.pk and instance.tag:
+        info = [i for i in wgn.clans.list(search=instance.tag) if i['tag'] == instance.tag]
+        if len(info) == 1:
+            instance.pk = info[0]['clan_id']
+            instance.title = info[0]['name']
+        else:
+            # No clan with such tag, do not allow such Clan
+            instance.tag = None
+            instance.title = None
 
 
 @receiver(pre_save, sender=Province)

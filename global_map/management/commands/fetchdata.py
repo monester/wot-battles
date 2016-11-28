@@ -152,6 +152,7 @@ def update_province(province, province_data):
     landing_type = province_data['landing_type']
     round_number = province_data['round_number']
     active_battles = province_data['active_battles']
+    status = province_data['status']
 
     battles_start_at = datetime.strptime(province_data['battles_start_at'], '%Y-%m-%dT%H:%M:%S') \
         .replace(tzinfo=pytz.UTC)
@@ -165,6 +166,7 @@ def update_province(province, province_data):
         'arena_name': arena_name,
         'server': server,
         'prime_time': time(*map(int, prime_time.split(':'))),  # UTC time
+        'status': status,
     })[0]
 
     clans = {
@@ -200,6 +202,14 @@ def update_province(province, province_data):
         if created:
             logger.debug("created assault for '%s' {current_owner: '%s', date: '%s', 'attackers_count': %s}",
                          province_id, province.province_owner, date, len(province_data['attackers']))
+
+        if status == 'FINISHED' and battles_start_at > assault.datetime:
+            from django.core.mail import mail_admins
+            import json
+            mail_admins('Update finished Assault for %s' % province_id,
+                      json.dumps(province_data, sort_keys=True, indent=4))
+            logger.error("Status FINISHED for province attack on running assault, do not update assault")
+            return
 
         for active_battle in active_battles:
             pb, created = ProvinceBattle.objects.get_or_create(
