@@ -207,12 +207,12 @@ class ProvinceAssault(models.Model):
 
     def clan_battles(self, clan):
         max_rounds = len(self.planned_times)
-        existing_battles = {b.round_datetime: b for b in self.battles.filter(Q(clan_a=clan) | Q(clan_b=clan))}
+        existing_battles = {b.round: b for b in self.battles.filter(Q(clan_a=clan) | Q(clan_b=clan))}
+
         res = []
         for round_number in range(1, max_rounds + 1):
-            time = self.planned_times[round_number - 1]
-            if time in existing_battles:
-                res.append(existing_battles[time])
+            if round_number in existing_battles:
+                res.append(existing_battles[round_number])
             else:
                 # create FAKE planned battle
                 pb = ProvinceBattle(
@@ -221,7 +221,7 @@ class ProvinceAssault(models.Model):
                     arena_id=self.arena_id,
                     round=round_number,
                 )
-                if self.round_number >= round_number and datetime.now(tz=pytz.UTC) >= self.datetime:
+                if round_number <= self.round_number and self.status == 'STARTED':
                     pb.winner = clan
                 if round_number == max_rounds and self.current_owner:
                     pb.clan_a = self.current_owner
