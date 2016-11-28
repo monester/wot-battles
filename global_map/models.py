@@ -201,7 +201,7 @@ class ProvinceAssault(models.Model):
         if clans_count > 0:
             total_rounds = round_number + int(math.ceil(math.log(clans_count, 2))) - 1
         else:
-            total_rounds = 0
+            total_rounds = round_number - 1
         times = [
             self.datetime + timedelta(minutes=30) * i
             for i in range(0, total_rounds)
