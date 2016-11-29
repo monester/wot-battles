@@ -80,7 +80,8 @@ class ListBattlesJson(View):
             date = datetime_date(*[int(i) for i in date.split('-')])
             assaults = [
                 assault.as_clan_json(clan, current_only=False)
-                for assault in pa_query.filter(date=date).filter(Q(battles__clan_a=clan) | Q(battles__clan_b=clan))
+                for assault in pa_query.filter(date=date).filter(
+                    Q(battles__clan_a=clan) | Q(battles__clan_b=clan) | Q(clans=clan) | Q(current_owner=clan))
             ]
         else:
             date = datetime.now().date()

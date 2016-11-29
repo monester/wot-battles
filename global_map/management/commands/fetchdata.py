@@ -201,7 +201,7 @@ def update_province(province, province_data):
         ))
 
         # check for previous Assaults
-        running = ProvinceAssault.objects.filter(province=province, status='RUNNING')
+        running = ProvinceAssault.objects.filter(province=province, status='STARTED')
         for pa in running:
             if pa == assault:  # this is actual Assault
                 continue
@@ -251,6 +251,14 @@ def update_province(province, province_data):
                     assault.delete()
                 else:
                     logger.warn("no clans left in assault %s after its prime time", province_id)
+    else:
+        # No clans attack province, no planned assault
+
+        # CLEANUP: check for finished attacks and set them to finished
+        running = ProvinceAssault.objects.filter(province=province, status='STARTED')
+        for pa in running:
+            pa.status = 'FINISHED'
+            pa.save()
 
 
 def collect_clan_related_provinces(clan):
