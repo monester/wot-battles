@@ -27,7 +27,6 @@ Date.prototype.shortTime = function () {
 var selected_date = 'latest';
 refresh_clan = function (force_update) {
     force_update = force_update != undefined;
-    console.log(selected_date);
     var url = '/battles/';
     if(selected_date != 'latest')
         url += selected_date + '/';
@@ -59,8 +58,12 @@ refresh_clan = function (force_update) {
         time_template_noclan = template;
         var time_template_skipped = template;
 
-        var province_tmpl = "<div class='timetable-province'><strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
-            "{{server}} | {{ name }} | {{ arena_name }} | {{ mode }}</a></strong></div>";
+        var province_tmpl = "<div class='timetable-province'>"+
+            "<span class='label label-primary'>{{server}}</span> " +
+            "<span class='label label-primary'>{{prime_time}}</span> " +
+            "<span class='fa fa-{{ mode }}'></span> " +
+            "<strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
+            "{{ name }}</a><br/>{{arena_name}}</strong></div>";
 
         Mustache.parse(time_template_clan);
         Mustache.parse(time_template_noclan);
@@ -73,7 +76,7 @@ refresh_clan = function (force_update) {
         // fill header line with times
         var table = $('.timetable-times table');
         var provinces = $('.timetable-provinces');
-        var newrow = $( "<td class='timetable-row'></td>" );
+        newrow = $( "<td class='timetable-row'></td>" );
         for(var time=new Date(start_date); time <= end_date; time=time.addMinutes(30)) {
             newrow.append("<div class='timetable-cell'>" + time.shortTime().substr(0, 5) + "</div>");
         }
@@ -86,6 +89,13 @@ refresh_clan = function (force_update) {
             var battles = assaults[i]['battles'];
             var mode = assaults[i]['mode'];
             var total_battles = battles.length;
+            var prime_time = new Date(assaults[i]['prime_time']).shortTime().substr(0, 5);
+
+            if(mode == 'attack') {
+                mode = 'crosshairs';
+            } else {
+                mode = 'shield';
+            }
 
             var province = $(Mustache.render(province_tmpl, {
                 server: province_info['server'],
@@ -93,7 +103,8 @@ refresh_clan = function (force_update) {
                 province_id: province_info['province_id'],
                 arena_name: province_info['arena_name'],
                 mode: mode,
-                clans: assaults[i]['clans']
+                clans: assaults[i]['clans'],
+                prime_time: prime_time
             }));
 
             var assault_datetime, padding;
@@ -123,7 +134,6 @@ refresh_clan = function (force_update) {
                     } else {
                         clan = battle['clan_a'];
                     }
-                    console.log(clan['tag']);
                     newrow.append(Mustache.render(time_template_clan, {
                         round: title,
                         clan_tag: clan['tag'],

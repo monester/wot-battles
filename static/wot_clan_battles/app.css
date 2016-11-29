@@ -23,13 +23,13 @@
 .timetable-provinces {
     padding-top: 32px;
     display: block;
-    width: 400px;
+    width: 250px;
     float: left;
 }
 
 .timetable-times {
     overflow-x: scroll;
-    width: calc(100% - 400px);
+    width: calc(100% - 250px);
 }
 
 .timetable-times table {
@@ -75,6 +75,7 @@
     height: 71px;
     overflow: hidden;
     border-bottom:1px solid #ccc;
+    padding: 0 3px 0;
 }
 
 .timetable-province:first-child {

@@ -254,6 +254,7 @@ class ProvinceAssault(models.Model):
         return {
             'mode': mode,
             'province_info': self.province.as_json(),
+            'prime_time': self.datetime,
             'clans': {c.pk: c.as_json_with_arena(self.arena_id) for c in self.clans.all()},
             'battles': battles,
         }
