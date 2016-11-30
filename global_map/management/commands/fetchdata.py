@@ -1,5 +1,6 @@
 # coding=utf-8
 from django.conf import settings
+from django.db.models import Q
 from datetime import datetime, timedelta, time
 import pytz
 from django.core.management.base import BaseCommand, CommandError
@@ -220,14 +221,17 @@ def update_province(province, province_data):
             return
 
         for active_battle in active_battles:
-            pb, created = ProvinceBattle.objects.get_or_create(
+            pb, created = ProvinceBattle.objects.update_or_create(
                 assault=assault,
                 province=province,
                 arena_id=arena_id,
                 clan_a=clans[active_battle['clan_a']['clan_id']],
                 clan_b=clans[active_battle['clan_b']['clan_id']],
-                start_at=datetime.strptime(active_battle['start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC),
                 round=active_battle['round'],
+                defaults={
+                    'start_at': datetime.strptime(
+                        active_battle['start_at'], '%Y-%m-%dT%H:%M:%S').replace(tzinfo=pytz.UTC)
+                }
             )
             if created:
                 logger.debug("created battle for '%s' {round: '%s', clan_a: '%s', clan_b '%s'}",
@@ -332,6 +336,57 @@ def get_provinces_data(provinces):
     return provinces_data
 
 
+def update_winners_from_log(clan):
+    resp = requests.get('https://ru.wargaming.net/globalmap/game_api/clan/%s/log?'
+                        'category=battles&page_number=1&page_size=3000' % clan.id).json()['data']
+
+    logs = defaultdict(list)
+    battle_result_types = [
+        'SUPER_FINAL_BATTLE_LOST',
+        'SUPER_FINAL_BATTLE_WON',
+        'TOURNAMENT_BATTLE_FINISHED_WITH_DRAW',
+        'TOURNAMENT_BATTLE_LOST',
+        'TOURNAMENT_BATTLE_WON',
+    ]
+    for log in resp:
+        if log['type'] in battle_result_types:
+            province_id = log['target_province']['alias']
+            log['created_at'] = datetime.strptime(log['created_at'][0:19], '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC)
+            log['enemy_clan'] = Clan.objects.get_or_create(pk=log['enemy_clan']['id'])[0]
+            logs[province_id].insert(0, log)
+
+    province_battles = defaultdict(list)
+    for pb in ProvinceBattle.objects.filter(winner=None).filter(Q(clan_a=clan) | Q(clan_b=clan)).order_by('start_at') \
+            .select_related('province'):
+        province_battles[pb.province.province_id].append(pb)
+
+    for province_id in province_battles.keys():
+        pb_index = log_index = 0
+        total_pb = len(province_battles[province_id])
+        total_logs = len(logs[province_id])
+        while True:
+            if pb_index >= total_pb or log_index >= total_logs:
+                break
+
+            pb = province_battles[province_id][pb_index]
+            log = logs[province_id][log_index]
+
+            start_at = pb.start_at
+            result_at = log['created_at']
+
+            if start_at > result_at:  # result earlier than battle started
+                log_index += 1
+                continue
+            if result_at >= start_at >= result_at - timedelta(minutes=20):
+                pb.winner = Clan.objects.get_or_create(pk=log['winner_id'])[0]
+                pb.save()
+                pb_index += 1
+                log_index += 1
+                continue
+            if result_at > start_at + timedelta(minutes=20):
+                pb_index += 1
+
+
 def update_clan(clan_id):
     clan = Clan.objects.get_or_create(pk=clan_id)[0]
     province_ids = {}
@@ -367,6 +422,8 @@ def update_clan(clan_id):
     for province, data in provinces_data.items():
         update_province(province, data)
 
+    update_winners_from_log(clan)
+
 
 class Command(BaseCommand):
     help = 'Save map to cache'
@@ -384,4 +441,4 @@ class Command(BaseCommand):
             except Exception:
                 logger.critical("Unknown error", exc_info=True)
         logger.info("Finished import at %s, seconds elapsed %s",
-                    datetime.now(tz=pytz.UTC), time()-start)
+                    datetime.now(tz=pytz.UTC), time() - start)
