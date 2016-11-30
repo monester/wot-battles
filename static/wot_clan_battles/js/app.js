@@ -134,7 +134,7 @@ refresh_clan = function (force_update) {
                     } else {
                         clan = battle['clan_a'];
                     }
-                    newrow.append(Mustache.render(time_template_clan, {
+                    cell = $(Mustache.render(time_template_clan, {
                         round: title,
                         clan_tag: clan['tag'],
                         time: time.shortTime(),
@@ -142,13 +142,23 @@ refresh_clan = function (force_update) {
                         elo: clan['elo_' + province_info['max_vehicle_level']],
                         battles: clan['arena_stat']['battles_count']
                     }));
+                    if(battle['winner'] && battle['winner']['clan_id'] == clan_id) {
+                        cell.css('background-image', 'linear-gradient(to bottom,#0f0 0,#e0e0e0 100%)');
+                    } else if(battle['winner']) {
+                        cell.css('background-image', 'linear-gradient(to bottom,#f00 0,#e0e0e0 100%)');
+                        newrow.append(cell);
+                        break;
+                    }
+                    newrow.append(cell);
                 } else {
                     if(battle['winner'] && battle['winner']['clan_id'] == clan_id) {
-                        newrow.append(Mustache.render(time_template_skipped, {
+                        cell = $(Mustache.render(time_template_skipped, {
                             round: title,
                             time: time.shortTime(),
                             clan_tag: 'SKIPPED'
                         }));
+                        cell.css('background-image', 'linear-gradient(to bottom,#0f0 0,#e0e0e0 100%)');
+                        newrow.append(cell);
                     } else {
                         newrow.append(Mustache.render(time_template_noclan, {
                             round: title,
