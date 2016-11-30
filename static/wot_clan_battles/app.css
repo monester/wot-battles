@@ -34,7 +34,7 @@
 
 .timetable-times table {
     background-image: linear-gradient(to right, #ccc, transparent 1px);
-    background-size: 100px;
+    background-size: 75px;
     width: 2500px;
 }
 
@@ -42,33 +42,6 @@
     border-top: 1px solid #ccc;
     white-space: nowrap;
 }
-
-/*.timetable-times tr:first-child .timetable-row {
-    height: 30px;
-}
-
-.timetable-row .timetable-time:first-child {
-    border-left: 1px solid #ccc;
-}
-
-.timetable-time {
-    width: 150px;
-    height: 70px;
-    display: inline-block;
-    float: left;
-    border-right: 1px solid #ccc;
-    background-image: linear-gradient(to bottom,#fff 0,#e0e0e0 100%);
-}
-
-.timetable-time .stat-row {
-    display: block;
-    width: 100%;
-}
-.timetable-time .stat-row span {
-    display: inline-block;
-    width: 33%;
-    text-align: center;
-} */
 
 /* SINGLE ROW WITH PROVINCE ID */
 .timetable-province {
@@ -87,7 +60,7 @@
   display: block;
   border-left: 1px solid #ccc;
   padding: 2px 4px 2px;
-  width: 200px;
+  width: 150px;
   height: 70px;
   position: relative;
   overflow-y: hidden;
