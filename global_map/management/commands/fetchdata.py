@@ -191,7 +191,7 @@ def update_province(province, province_data):
     # if battle starts next day, but belongs to previous
     date = dt.date() if dt >= today_start else (dt - timedelta(days=1)).date()
     try:
-        assault = ProvinceAssault.objects.update_or_create(province=province, date=date)
+        assault = ProvinceAssault.objects.get(province=province, date=date)
     except ProvinceAssault.DoesNotExist:
         assault = None
 
