@@ -213,6 +213,8 @@ def update_province(province, province_data):
             # DEBUG ISSUE
             mail_admins(
                 "[%s] Create/Delete ProvinceAssault for %s" % (date, province_id),
+                str(datetime.now(tz=pytz.UTC)) +
+                'https://ru.wargaming.net/globalmap/#province/' + province_id +
                 'Created: %s' % json.dumps(province_data, indent=4, sort_keys=True)
             )
         else:
@@ -275,6 +277,8 @@ def update_province(province, province_data):
         # DEBUG ISSUE
         mail_admins(
             "[%s] Clans update on ProvinceAssault for %s" % (date, province_id),
+            str(datetime.now(tz=pytz.UTC)) +
+            'https://ru.wargaming.net/globalmap/#province/' + province_id +
             'Old clans: %s\nNew clans: %s\n JSON DUMP: %s' % (
                 ', '.join([repr(i) for i in assault.clans.all()]),
                 ', '.join([repr(i) for i in clans.values()]),
@@ -285,14 +289,18 @@ def update_province(province, province_data):
         assault.clans.add(*clans.values())
     else:
         # No clans attack province, no planned assault
+
         planned = ProvinceAssault.objects.filter(date__gte=datetime.now(tz=pytz.UTC).date(), clans=None)
         for pa in planned:
+            # DEBUG ISSUE
+            mail_admins(
+                "[%s] Create/Delete ProvinceAssault for %s" % (pa.date, province_id),
+                str(datetime.now(tz=pytz.UTC)) +
+                'https://ru.wargaming.net/globalmap/#province/' + province_id +
+                'Deleted:\n%s' % json.dumps(province_data, indent=4, sort_keys=True)
+            )
+            # END DEBUG
             if pa.datetime >= datetime.now(tz=pytz.UTC):
-                # DEBUG ISSUE
-                mail_admins(
-                    "[%s] Create/Delete ProvinceAssault for %s" % (pa.datetime, province_id),
-                    'Deleted: %s' % json.dumps(province_data, indent=4, sort_keys=True)
-                )
                 pa.delete()
 
         # CLEANUP: check for finished attacks and set them to finished
