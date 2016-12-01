@@ -4,6 +4,7 @@ from django.db.models import Q
 from datetime import datetime, timedelta, time
 import pytz
 from django.core.management.base import BaseCommand, CommandError
+from django.core.mail import mail_admins
 
 from collections import defaultdict
 import json
@@ -87,7 +88,7 @@ class TournamentInfo(dict):
         self.update(requests.get(
             'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
         try:
-            province = Province.objects.get(province_id=self['province_id'])
+            province = Province.objects.get(province_id=self['province_id'], front_id=self['front_id'])
         except Province.DoesNotExist:
             return
 
@@ -158,16 +159,15 @@ def update_province(province, province_data):
     battles_start_at = datetime.strptime(province_data['battles_start_at'], '%Y-%m-%dT%H:%M:%S') \
         .replace(tzinfo=pytz.UTC)
 
-    front = Front.objects.get(front_id=province_data['front_id'])
     logger.debug("update_province: running update for province '%s'", province_id)
-    province = Province.objects.update_or_create(front=front, province_id=province_id, defaults={
-        'province_name': province_name,
-        'province_owner': province_owner,
-        'arena_id': arena_id,
-        'arena_name': arena_name,
-        'server': server,
-        'prime_time': time(*map(int, prime_time.split(':'))),  # UTC time
-    })[0]
+
+    province.province_name = province_name
+    province.province_owner = province_owner
+    province.arena_id = arena_id
+    province.arena_name = arena_name
+    province.server = server
+    province.prime_time = time(*map(int, prime_time.split(':')))  # UTC time
+    province.save()
 
     clans = {
         clan_id: Clan.objects.get_or_create(pk=clan_id)[0]
@@ -190,31 +190,47 @@ def update_province(province, province_data):
 
     # if battle starts next day, but belongs to previous
     date = dt.date() if dt >= today_start else (dt - timedelta(days=1)).date()
+    try:
+        assault = ProvinceAssault.objects.update_or_create(province=province, date=date)
+    except ProvinceAssault.DoesNotExist:
+        assault = None
 
+    # if clans or assault:
     if clans:
-        assault, created = ProvinceAssault.objects.update_or_create(province=province, date=date, defaults=dict(
-            current_owner=province_owner,
-            prime_time=province.prime_time,
-            arena_id=province.arena_id,
-            landing_type=landing_type,
-            round_number=round_number,
-            status=status,
-        ))
-
-        # check for previous Assaults
-        running = ProvinceAssault.objects.filter(province=province, status='STARTED')
-        for pa in running:
-            if pa == assault:  # this is actual Assault
-                continue
-            pa.status = 'FINISHED'
-            pa.save()
-
-        if created:
+        if not assault:
+            assault = ProvinceAssault.objects.create(
+                province=province,
+                date=date,
+                current_owner=province_owner,
+                prime_time=province.prime_time,
+                arena_id=province.arena_id,
+                landing_type=landing_type,
+                round_number=round_number,
+                status=status,
+            )
             logger.debug("created assault for '%s' {current_owner: '%s', date: '%s', 'attackers_count': %s}",
                          province_id, province.province_owner, date, len(province_data['attackers']))
+            # DEBUG ISSUE
+            mail_admins(
+                "[%s] Create/Delete ProvinceAssault for %s" % (date, province_id),
+                'Created: %s' % json.dumps(province_data, indent=4, sort_keys=True)
+            )
+        else:
+            assault.current_owner = province_owner
+            assault.prime_time = province.prime_time
+            assault.arena_id = province.arena_id
+            assault.landing_type = landing_type
+            assault.round_number = round_number
+            assault.status = status
+            assault.save()
+
+        # check for previous Assaults
+        running = ProvinceAssault.objects \
+            .filter(province=province, status='STARTED') \
+            .exclude(pk=assault.pk) \
+            .update(status='FINISHED')
 
         if status == 'FINISHED' and battles_start_at > assault.datetime:
-            from django.core.mail import mail_admins
             mail_admins('Update finished Assault for %s' % province_id,
                         json.dumps(province_data, sort_keys=True, indent=4))
             logger.error("Status FINISHED for province attack on running assault, do not update assault")
@@ -255,8 +271,29 @@ def update_province(province, province_data):
                     assault.delete()
                 else:
                     logger.warn("no clans left in assault %s after its prime time", province_id)
+    elif assault and set(assault.clans.all()) != set(clans):
+        # DEBUG ISSUE
+        mail_admins(
+            "[%s] Clans update on ProvinceAssault for %s" % (date, province_id),
+            'Old clans: %s\nNew clans: %s\n JSON DUMP: %s' % (
+                ', '.join([repr(i) for i in assault.clans.all()]),
+                ', '.join([repr(i) for i in clans.values()]),
+                json.dumps(province_data, indent=4, sort_keys=True)
+            )
+        )
+        assault.clans.clear()
+        assault.clans.add(*clans.values())
     else:
         # No clans attack province, no planned assault
+        planned = ProvinceAssault.objects.filter(date__gte=datetime.now(tz=pytz.UTC).date(), clans=None)
+        for pa in planned:
+            if pa.datetime >= datetime.now(tz=pytz.UTC):
+                # DEBUG ISSUE
+                mail_admins(
+                    "[%s] Create/Delete ProvinceAssault for %s" % (pa.datetime, province_id),
+                    'Created: %s' % json.dumps(province_data, indent=4, sort_keys=True)
+                )
+                pa.delete()
 
         # CLEANUP: check for finished attacks and set them to finished
         running = ProvinceAssault.objects.filter(province=province, status='STARTED')
