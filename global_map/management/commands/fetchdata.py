@@ -291,7 +291,7 @@ def update_province(province, province_data):
                 # DEBUG ISSUE
                 mail_admins(
                     "[%s] Create/Delete ProvinceAssault for %s" % (pa.datetime, province_id),
-                    'Created: %s' % json.dumps(province_data, indent=4, sort_keys=True)
+                    'Deleted: %s' % json.dumps(province_data, indent=4, sort_keys=True)
                 )
                 pa.delete()
 
