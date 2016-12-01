@@ -88,7 +88,7 @@ class TournamentInfo(dict):
         self.update(requests.get(
             'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
         try:
-            province = Province.objects.get(province_id=self['province_id'], front_id=self['front_id'])
+            province = Province.objects.get(province_id=self['province_id'], front__front_id=self['front_id'])
         except Province.DoesNotExist:
             return
 
