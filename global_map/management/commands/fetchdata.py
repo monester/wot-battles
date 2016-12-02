@@ -289,8 +289,7 @@ def update_province(province, province_data):
         assault.clans.add(*clans.values())
     else:
         # No clans attack province, no planned assault
-
-        planned = ProvinceAssault.objects.filter(date__gte=datetime.now(tz=pytz.UTC).date(), clans=None)
+        planned = ProvinceAssault.objects.filter(date__gte=datetime.now(tz=pytz.UTC).date())
         for pa in planned:
             # DEBUG ISSUE
             mail_admins(
@@ -300,8 +299,8 @@ def update_province(province, province_data):
                 'Deleted:\n%s' % json.dumps(province_data, indent=4, sort_keys=True)
             )
             # END DEBUG
-            if pa.datetime >= datetime.now(tz=pytz.UTC):
-                pa.delete()
+            # if pa.datetime >= datetime.now(tz=pytz.UTC):
+            #     pa.delete()
 
         # CLEANUP: check for finished attacks and set them to finished
         running = ProvinceAssault.objects.filter(province=province, status='STARTED')
