@@ -367,14 +367,14 @@ def get_provinces_data(provinces):
                     provinces_data[map_id_model[province_id]] = data
 
     # query unofficial province_info
-    # for province, data in provinces_data.items():
-    #     province_id = province.province_id
-    #     ti = TournamentInfo(province_id)
-    #     if provinces_data[province]['competitors'] != ti.pretenders:
-    #         # logger.warn('Official api and WG PAPI returned different number of competitors')
-    #         provinces_data[province]['competitors'] = list(set(
-    #             provinces_data[province]['competitors'] + ti.pretenders
-    #         ))
+    for province, data in provinces_data.items():
+        province_id = province.province_id
+        ti = TournamentInfo(province_id)
+        if provinces_data[province]['competitors'] != ti.pretenders:
+            # logger.warn('Official api and WG PAPI returned different number of competitors')
+            provinces_data[province]['competitors'] = list(set(
+                provinces_data[province]['competitors'] + ti.pretenders
+            ))
 
     return provinces_data
 
