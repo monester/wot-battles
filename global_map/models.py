@@ -17,6 +17,10 @@ wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
 wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
 
 
+def utc_now():
+    return datetime.now(tz=pytz.UTC)
+
+
 # Create your models here.
 class Clan(models.Model):
     tag = models.CharField(max_length=5, null=True)
@@ -96,7 +100,8 @@ class Province(models.Model):
         self.arena_name = data['arena_name']
         self.province_name = data['province_name']
         self.prime_time = data['prime_time']
-        self.province_owner = Clan.objects.get_or_create(pk=data['owner_clan_id'])[0]
+        if data['owner_clan_id']:
+            self.province_owner = Clan.objects.get_or_create(pk=data['owner_clan_id'])[0]
         self.server = data['server']
 
     def as_json(self):
@@ -192,7 +197,7 @@ class ProvinceAssault(models.Model):
 
     @cached_property
     def planned_times(self):
-        if datetime.now(tz=pytz.UTC) > self.datetime:
+        if utc_now() > self.datetime:
             round_number = self.round_number
         else:
             round_number = 1  # Bug-Fix: WGAPI return round number from previous day
@@ -242,7 +247,7 @@ class ProvinceAssault(models.Model):
         if current_only:
             battles = [b.as_json() for b in self.clan_battles(clan)
                        if b.round >= self.round_number and self.status != 'FINISHED'
-                       or self.datetime > datetime.now(tz=pytz.UTC)]
+                       or self.datetime > utc_now()]
         else:
             battles = [b.as_json() for b in self.clan_battles(clan)]
 

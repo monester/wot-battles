@@ -116,7 +116,7 @@ class TournamentInfo(dict):
         if isinstance(self['pretenders'], list):
             for clan in self['pretenders']:
                 clans[clan['id']] = clan
-        if self['owner']['id'] in clans:
+        if self['owner'] and self['owner']['id'] in clans:
             del clans[self['owner']['id']]
         return clans
 
@@ -256,7 +256,7 @@ def update_province(province, province_data):
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
         # if owner in attackers/competitors list
-        if assault.current_owner.id in clans:
+        if assault.current_owner and assault.current_owner.id in clans:
             del clans[assault.current_owner.id]
 
         if set(assault.clans.all()) != set(clans.values()):
