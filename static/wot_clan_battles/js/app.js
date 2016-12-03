@@ -86,6 +86,7 @@ refresh_clan = function (force_update) {
         // fill battle times
         for(var i=0; i<assaults.length; i++) {
             var province_info = assaults[i]['province_info'];
+            var province_owner = province_info['province_owner'];
             var battles = assaults[i]['battles'];
             var mode = assaults[i]['mode'];
             var total_battles = battles.length;
@@ -113,7 +114,7 @@ refresh_clan = function (force_update) {
 
             newrow = $("<td class='timetable-row'></td>");
             newrow.css("padding-left", padding);
-            for(var t in battles) {
+            for(var t=0; t < battles.length; t++) {
                 var title, clan;
                 var battle = battles[t];
                 if(battle['real_start_at']) {
@@ -121,6 +122,11 @@ refresh_clan = function (force_update) {
                 } else {
                     time = new Date(battle['planned_start_at']);
                 }
+
+                if(! province_owner) {
+                    t = t - 1
+                }
+
                 if(total_battles - t > 2) {
                     title = "1/" + Math.pow(2, total_battles - t - 2);
                 } else if(total_battles - t == 2) {
