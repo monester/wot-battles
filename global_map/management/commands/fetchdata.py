@@ -109,7 +109,7 @@ class TournamentInfo(dict):
             else:
                 # DEBUG ISSUE
                 mail_admins("NO FIRST COMPETITOR IN BATTLE: province %s" % self['province_id'],
-                            json.dumps(self))
+                            json.dumps(self, indent=4, sort_keys=True))
             if 'second_competitor' in battle and battle['second_competitor']:
                 clans[battle['second_competitor']['id']] = battle['second_competitor']
         if isinstance(self['pretenders'], list):
