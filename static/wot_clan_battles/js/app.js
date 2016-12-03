@@ -124,16 +124,21 @@ refresh_clan = function (force_update) {
                 }
 
                 if(! province_owner) {
-                    t = t - 1
+                    if(total_battles - t > 1) {
+                        title = "1/" + Math.pow(2, total_battles - t - 1);
+                    } else {
+                        title = "Final";
+                    }
+                } else {
+                    if(total_battles - t > 2) {
+                        title = "1/" + Math.pow(2, total_battles - t - 2);
+                    } else if(total_battles - t == 2) {
+                        title = "Final";
+                    } else {
+                        title = "Owner";
+                    }
                 }
 
-                if(total_battles - t > 2) {
-                    title = "1/" + Math.pow(2, total_battles - t - 2);
-                } else if(total_battles - t == 2) {
-                    title = "Final";
-                } else {
-                    title = "Owner";
-                }
                 if(battle['clan_a'] && battle['clan_b']) {
                     if(battle['clan_a']['clan_id'] == clan_id) {
                         clan = battle['clan_b'];
