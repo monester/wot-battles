@@ -214,7 +214,7 @@ def update_province(province, province_data):
                 "[%s] Create/Delete ProvinceAssault for %s" % (date, province_id),
                 str(datetime.now(tz=pytz.UTC)) +
                 'https://ru.wargaming.net/globalmap/#province/' + province_id +
-                'Created: %s' % json.dumps(province_data, indent=4, sort_keys=True)
+                '\nCreated: %s' % json.dumps(province_data, indent=4, sort_keys=True)
             )
         else:
             assault.current_owner = province_owner
@@ -295,7 +295,7 @@ def update_province(province, province_data):
                 "[%s] Create/Delete ProvinceAssault for %s" % (pa.date, province_id),
                 str(datetime.now(tz=pytz.UTC)) +
                 'https://ru.wargaming.net/globalmap/#province/' + province_id +
-                'Deleted:\n%s' % json.dumps(province_data, indent=4, sort_keys=True)
+                '\nDeleted:\n%s' % json.dumps(province_data, indent=4, sort_keys=True)
             )
             # END DEBUG
             # if pa.datetime >= datetime.now(tz=pytz.UTC):
