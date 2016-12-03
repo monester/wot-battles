@@ -188,8 +188,8 @@ class ProvinceAssault(models.Model):
         unique_together = ('date', 'province')
 
     def __repr__(self):
-        return '<ProvinceAssault: %s owned by %s>' % (
-            self.province.province_id, str(self.current_owner))
+        return '<ProvinceAssault @%s: %s owned by %s>' % (
+            self.date, self.province.province_id, str(self.current_owner))
 
     @cached_property
     def datetime(self):
