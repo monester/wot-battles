@@ -62,7 +62,7 @@ refresh_clan = function (force_update) {
             "<span class='label label-primary'>{{server}}</span> " +
             "<span class='label label-primary'>{{prime_time}}</span> " +
             "<span class='fa fa-{{ mode }}'></span> " +
-            "<strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}'>" +
+            "<strong><a href='https://ru.wargaming.net/globalmap/#province/{{province_id}}' target='_blank'>" +
             "{{ name }}</a><br/>{{arena_name}}</strong></div>";
 
         Mustache.parse(time_template_clan);
