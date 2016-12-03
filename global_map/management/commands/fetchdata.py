@@ -420,7 +420,9 @@ def update_winners_from_log(clan):
             if start_at > result_at:  # result earlier than battle started
                 log_index += 1
                 continue
-            if result_at >= start_at >= result_at - timedelta(minutes=20):
+            # match if -5 ... 20 from battle start time
+            # for example if battle starts at 17:00 it would be matched by result 16:55 ... 17:20
+            if result_at + timedelta(minutes=5) >= start_at >= result_at - timedelta(minutes=20):
                 pb.winner = Clan.objects.get_or_create(pk=log['winner_id'])[0]
                 pb.save()
                 pb_index += 1
