@@ -173,11 +173,15 @@ def update_province(province, province_data):
         for clan_id in competitors + attackers
     }
 
-    for active_battle in active_battles:
-        clan_a_id = active_battle['clan_a']['clan_id']
-        clan_b_id = active_battle['clan_b']['clan_id']
-        clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
-        clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
+    if status == 'STARTED' and not clans:
+        # BUG in WG API: it returns empty list in 'competitors' or 'attackers'
+        for active_battle in active_battles:
+            clan_a_id = active_battle['clan_a']['clan_id']
+            clan_b_id = active_battle['clan_b']['clan_id']
+            clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
+            clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
+        for clan in TournamentInfo(province_id).pretenders:
+            clans[clan['id']] = Clan.objects.get_or_create(pk=clan['id'])[0]
 
     dt = battles_start_at
     today_start = battles_start_at.replace(
@@ -226,12 +230,13 @@ def update_province(province, province_data):
             assault.save()
 
         # check for previous Assaults
-        running = ProvinceAssault.objects \
+        ProvinceAssault.objects \
             .filter(province=province, status='STARTED') \
             .exclude(pk=assault.pk) \
             .update(status='FINISHED')
 
         if status == 'FINISHED' and battles_start_at > assault.datetime:
+            # NEVER SHOULD HAPPEN
             mail_admins('Update finished Assault for %s' % province_id,
                         json.dumps(province_data, sort_keys=True, indent=4))
             logger.error("Status FINISHED for province attack on running assault, do not update assault")
@@ -367,14 +372,14 @@ def get_provinces_data(provinces):
                     provinces_data[map_id_model[province_id]] = data
 
     # query unofficial province_info
-    for province, data in provinces_data.items():
-        province_id = province.province_id
-        ti = TournamentInfo(province_id)
-        if provinces_data[province]['competitors'] != ti.pretenders:
-            # logger.warn('Official api and WG PAPI returned different number of competitors')
-            provinces_data[province]['competitors'] = list(set(
-                provinces_data[province]['competitors'] + ti.pretenders
-            ))
+    # for province, data in provinces_data.items():
+    #     province_id = province.province_id
+    #     ti = TournamentInfo(province_id)
+    #     if provinces_data[province]['competitors'] != ti.pretenders:
+    #         # logger.warn('Official api and WG PAPI returned different number of competitors')
+    #         provinces_data[province]['competitors'] = list(set(
+    #             provinces_data[province]['competitors'] + ti.pretenders
+    #         ))
 
     return provinces_data
 
