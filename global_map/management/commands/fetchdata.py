@@ -175,6 +175,7 @@ def update_province(province, province_data):
 
     if status == 'STARTED' and not clans:
         # BUG in WG API: it returns empty list in 'competitors' or 'attackers'
+        # could happen after start of prime time
         for active_battle in active_battles:
             clan_a_id = active_battle['clan_a']['clan_id']
             clan_b_id = active_battle['clan_b']['clan_id']
@@ -198,8 +199,7 @@ def update_province(province, province_data):
     except ProvinceAssault.DoesNotExist:
         assault = None
 
-    # if clans or assault:
-    if clans:
+    if clans or assault:
         if not assault:
             assault = ProvinceAssault.objects.create(
                 province=province,
@@ -213,13 +213,6 @@ def update_province(province, province_data):
             )
             logger.debug("created assault for '%s' {current_owner: '%s', date: '%s', 'attackers_count': %s}",
                          province_id, province.province_owner, date, len(province_data['attackers']))
-            # DEBUG ISSUE
-            mail_admins(
-                "[%s] Create/Delete ProvinceAssault for %s" % (date, province_id),
-                str(datetime.now(tz=pytz.UTC)) +
-                'https://ru.wargaming.net/globalmap/#province/' + province_id +
-                '\nCreated: %s' % json.dumps(province_data, indent=4, sort_keys=True)
-            )
         else:
             assault.current_owner = province_owner
             assault.prime_time = province.prime_time
@@ -229,12 +222,13 @@ def update_province(province, province_data):
             assault.status = status
             assault.save()
 
-        # check for previous Assaults
+        # cleanup: check for previous Assaults
         ProvinceAssault.objects \
             .filter(province=province, status='STARTED') \
             .exclude(pk=assault.pk) \
             .update(status='FINISHED')
 
+        # TODO: remove this code
         if status == 'FINISHED' and battles_start_at > assault.datetime:
             # NEVER SHOULD HAPPEN
             mail_admins('Update finished Assault for %s' % province_id,
@@ -243,12 +237,19 @@ def update_province(province, province_data):
             return
 
         for active_battle in active_battles:
+            # WG return different time for same battle, that is why start_at
+            # can be updated.
+            clan_a_id = active_battle['clan_a']['clan_id']
+            clan_b_id = active_battle['clan_b']['clan_id']
+            clan_a = clans[clan_a_id] if clan_a_id in clans else Clan.objects.get_or_create(pk=clan_a_id)[0]
+            clan_b = clans[clan_b_id] if clan_b_id in clans else Clan.objects.get_or_create(pk=clan_b_id)[0]
+
             pb, created = ProvinceBattle.objects.update_or_create(
                 assault=assault,
                 province=province,
                 arena_id=arena_id,
-                clan_a=clans[active_battle['clan_a']['clan_id']],
-                clan_b=clans[active_battle['clan_b']['clan_id']],
+                clan_a=clan_a,
+                clan_b=clan_b,
                 round=active_battle['round'],
                 defaults={
                     'start_at': datetime.strptime(
@@ -260,57 +261,23 @@ def update_province(province, province_data):
                              province_id, pb.round, repr(pb.clan_a), repr(pb.clan_b))
 
         # if owner in attackers/competitors list
+        # it can happen if we're filling assaulting clans from battles
         if assault.current_owner and assault.current_owner.id in clans:
             del clans[assault.current_owner.id]
 
         if set(assault.clans.all()) != set(clans.values()):
+            assault.clans.clear()
             if clans:
-                assault.clans.clear()
                 assault.clans.add(*clans.values())
                 logger.debug("add clans to province '%s': %s",
                              province_id, ' '.join([repr(c) for c in clans.values()]))
             else:
-                assault.clans.clear()
                 logger.debug("no more clans assaulting province '%s', cleared clans", province_id)
                 if assault.datetime > datetime.now(tz=pytz.UTC):
                     logger.debug("update_province: removed assault for province %s", province_id)
                     assault.delete()
                 else:
                     logger.warn("no clans left in assault %s after its prime time", province_id)
-    elif assault and set(assault.clans.all()) != set(clans):
-        # DEBUG ISSUE
-        mail_admins(
-            "[%s] Clans update on ProvinceAssault for %s" % (date, province_id),
-            str(datetime.now(tz=pytz.UTC)) +
-            'https://ru.wargaming.net/globalmap/#province/' + province_id +
-            'Old clans: %s\nNew clans: %s\n JSON DUMP: %s' % (
-                ', '.join([repr(i) for i in assault.clans.all()]),
-                ', '.join([repr(i) for i in clans.values()]),
-                json.dumps(province_data, indent=4, sort_keys=True)
-            )
-        )
-        assault.clans.clear()
-        assault.clans.add(*clans.values())
-    else:
-        # No clans attack province, no planned assault
-        planned = ProvinceAssault.objects.filter(date__gte=datetime.now(tz=pytz.UTC).date())
-        for pa in planned:
-            # DEBUG ISSUE
-            mail_admins(
-                "[%s] Create/Delete ProvinceAssault for %s" % (pa.date, province_id),
-                str(datetime.now(tz=pytz.UTC)) +
-                'https://ru.wargaming.net/globalmap/#province/' + province_id +
-                '\nDeleted:\n%s' % json.dumps(province_data, indent=4, sort_keys=True)
-            )
-            # END DEBUG
-            # if pa.datetime >= datetime.now(tz=pytz.UTC):
-            #     pa.delete()
-
-        # CLEANUP: check for finished attacks and set them to finished
-        running = ProvinceAssault.objects.filter(province=province, status='STARTED')
-        for pa in running:
-            pa.status = 'FINISHED'
-            pa.save()
 
 
 def collect_clan_related_provinces(clan):
