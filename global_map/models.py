@@ -1,13 +1,18 @@
+# coding=utf-8
 from __future__ import unicode_literals
 
 from django.db import models
 import pytz
-from datetime import datetime, timedelta
+import requests
+
+from datetime import timedelta
+import datetime
 import math
 
 import wargaming
 from django.db.models.signals import pre_save
 from django.db.models import Q
+from django.contrib.postgres.fields import JSONField
 from django.dispatch import receiver
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -18,10 +23,103 @@ wgn = wargaming.WGN(settings.WARGAMING_KEY, language='ru', region='ru')
 
 
 def utc_now():
-    return datetime.now(tz=pytz.UTC)
+    return datetime.datetime.now(tz=pytz.UTC)
 
 
-# Create your models here.
+def combine_dt(date, time):
+    return datetime.datetime.combine(date, time)
+
+
+class TournamentInfo(dict):
+    def __init__(self, province_id, seq=None, **kwargs):
+        super(TournamentInfo, self).__init__(seq=None, **kwargs)
+        # {u'applications_decreased': False,
+        #  u'apply_error_message': u'Чтобы подать заявку, войдите на сайт.',
+        #  u'arena_name': u'Аэродром',
+        #  u'available_applications_number': 0,
+        #  u'battles': [],
+        #  u'can_apply': False,
+        #  u'front_id': u'campaign_05_ru_west',
+        #  u'is_apply_visible': False,
+        #  u'is_superfinal': False,
+        #  u'next_round': None,
+        #  u'next_round_start_time': u'19:15:00.000000',
+        #  u'owner': None,
+        #  u'pretenders': [{u'arena_battles_count': 49,
+        #    u'arena_wins_percent': 38.78,
+        #    u'cancel_action_id': None,
+        #    u'clan_id': 94365,
+        #    u'color': u'#b00a10',
+        #    u'division_id': None,
+        #    u'elo_rating_10': 1155,
+        #    u'elo_rating_6': 1175,
+        #    u'elo_rating_8': 1259,
+        #    u'emblem_url': u'https://ru.wargaming.net/clans/media/clans/emblems/cl_365/94365/emblem_64x64_gm.png',
+        #    u'fine_level': 0,
+        #    u'id': 94365,
+        #    u'landing': True,
+        #    u'name': u'Deadly Decoy',
+        #    u'tag': u'DECOY',
+        #    u'xp': None}],
+        #  u'province_id': u'herning',
+        #  u'province_name': u'\u0425\u0435\u0440\u043d\u0438\u043d\u0433',
+        #  u'province_pillage_end_datetime': None,
+        #  u'province_revenue': 0,
+        #  u'revenue_level': 0,
+        #  u'round_number': 1,
+        #  u'size': 32,
+        #  u'start_time': u'19:00:00',
+        #  u'turns_till_primetime': 11}
+        self.update(requests.get(
+            'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
+        try:
+            province = Province.objects.get(province_id=self['province_id'], front__front_id=self['front_id'])
+        except Province.DoesNotExist:
+            return
+
+        arena_id = province.arena_id
+        owner = self['owner']
+        if owner:
+            update_clan_province_stat(arena_id, **owner)
+
+        for clan_data in self.clans_info.values():
+            update_clan_province_stat(arena_id, **clan_data)
+
+    @property
+    def clans_info(self):
+        clans = {}
+        for battle in self['battles']:
+            if 'first_competitor' in battle and battle['first_competitor']:
+                clans[battle['first_competitor']['id']] = battle['first_competitor']
+            if 'second_competitor' in battle and battle['second_competitor']:
+                clans[battle['second_competitor']['id']] = battle['second_competitor']
+        if isinstance(self['pretenders'], list):
+            for clan in self['pretenders']:
+                clans[clan['id']] = clan
+        if self['owner'] and self['owner']['id'] in clans:
+            del clans[self['owner']['id']]
+        return clans
+
+    @property
+    def pretenders(self):
+        return self.clans_info.keys()
+
+
+def update_clan_province_stat(arena_id, tag, name, elo_rating_6, elo_rating_8, elo_rating_10,
+                              arena_wins_percent, arena_battles_count, **kwargs):
+        pk = kwargs.get('id') or kwargs['clan_id']
+
+        clan = Clan.objects.update_or_create(id=pk, defaults={
+            'tag': tag, 'title': name,
+            'elo_6': elo_rating_6, 'elo_8': elo_rating_8,
+            'elo_10': elo_rating_10,
+        })[0]
+        ClanArenaStat.objects.update_or_create(clan=clan, arena_id=arena_id, defaults={
+            'wins_percent': arena_wins_percent,
+            'battles_count': arena_battles_count,
+        })
+
+
 class Clan(models.Model):
     tag = models.CharField(max_length=5, null=True)
     title = models.CharField(max_length=255, null=True)
@@ -104,6 +202,10 @@ class Province(models.Model):
             self.province_owner = Clan.objects.get_or_create(pk=data['owner_clan_id'])[0]
         self.server = data['server']
 
+    @cached_property
+    def tournament_info(self):
+        return TournamentInfo(self.province_id)
+
     def as_json(self):
         return {
             'province_id': self.province_id,
@@ -170,7 +272,6 @@ class ClanArenaStat(models.Model):
 #   u'uri': u'/#province/aarhus',
 #   u'world_redivision': False}]
 
-
 class ProvinceAssault(models.Model):
     date = models.DateField()               # On what date Assault was performed
     province = models.ForeignKey(Province,  # On what province
@@ -182,6 +283,7 @@ class ProvinceAssault(models.Model):
     round_number = models.IntegerField(null=True)
     landing_type = models.CharField(max_length=255, null=True)
     status = models.CharField(max_length=20, default='FINISHED', null=True)
+    division = JSONField(null=True)
 
     class Meta:
         ordering = ('date', )
@@ -193,12 +295,20 @@ class ProvinceAssault(models.Model):
 
     @cached_property
     def datetime(self):
-        return datetime.combine(self.date, self.prime_time).replace(tzinfo=pytz.UTC)
+        if isinstance(self.date, str):
+            self.date = datetime.date(*[int(i) for i in self.date.split('-')])
+        if isinstance(self.prime_time, str):
+            self.prime_time = datetime.time(*[int(i) for i in self.prime_time.split(':')])
+        return combine_dt(self.date, self.prime_time).replace(tzinfo=pytz.UTC)
 
     @cached_property
     def planned_times(self):
         if utc_now() > self.datetime:
-            round_number = self.round_number
+            if isinstance(self.round_number, int):
+                round_number = self.round_number
+            else:
+                # Bug-fix: WGAPI can return None on round number if map is new
+                round_number = 1
         else:
             round_number = 1  # Bug-Fix: WGAPI return round number from previous day
 
@@ -301,7 +411,7 @@ class ProvinceBattle(models.Model):
     def round_datetime(self):
         prime_time = self.province.prime_time
         date = self.assault.date
-        return datetime.combine(date, prime_time).replace(tzinfo=pytz.UTC) + timedelta(minutes=30) * (self.round - 1)
+        return combine_dt(date, prime_time).replace(tzinfo=pytz.UTC) + timedelta(minutes=30) * (self.round - 1)
 
     @property
     def title(self):

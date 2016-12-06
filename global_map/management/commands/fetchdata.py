@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 day_begin_time = time(3, 0)  # battle day starts at 06:00 MSK(UTC+3)
 
 
+def utc_now():
+    return datetime.now(tz=pytz.UTC)
+
+
 class ProvinceInfo(dict):
     def __init__(self, province_id, seq=None, **kwargs):
         super(ProvinceInfo, self).__init__(self, seq=seq, **kwargs)
@@ -42,100 +46,6 @@ class ProvinceInfo(dict):
             # 'status': resp['province']['type'],  NO INFO
             'uri': '/#province/%s' % province_id,
             # 'active_battles': resp['province'][''],  ==> tournament_info
-        })
-
-
-class TournamentInfo(dict):
-    def __init__(self, province_id, seq=None, **kwargs):
-        super(TournamentInfo, self).__init__(seq=None, **kwargs)
-        # {u'applications_decreased': False,
-        #  u'apply_error_message': u'Чтобы подать заявку, войдите на сайт.',
-        #  u'arena_name': u'Аэродром',
-        #  u'available_applications_number': 0,
-        #  u'battles': [],
-        #  u'can_apply': False,
-        #  u'front_id': u'campaign_05_ru_west',
-        #  u'is_apply_visible': False,
-        #  u'is_superfinal': False,
-        #  u'next_round': None,
-        #  u'next_round_start_time': u'19:15:00.000000',
-        #  u'owner': None,
-        #  u'pretenders': [{u'arena_battles_count': 49,
-        #    u'arena_wins_percent': 38.78,
-        #    u'cancel_action_id': None,
-        #    u'clan_id': 94365,
-        #    u'color': u'#b00a10',
-        #    u'division_id': None,
-        #    u'elo_rating_10': 1155,
-        #    u'elo_rating_6': 1175,
-        #    u'elo_rating_8': 1259,
-        #    u'emblem_url': u'https://ru.wargaming.net/clans/media/clans/emblems/cl_365/94365/emblem_64x64_gm.png',
-        #    u'fine_level': 0,
-        #    u'id': 94365,
-        #    u'landing': True,
-        #    u'name': u'Deadly Decoy',
-        #    u'tag': u'DECOY',
-        #    u'xp': None}],
-        #  u'province_id': u'herning',
-        #  u'province_name': u'\u0425\u0435\u0440\u043d\u0438\u043d\u0433',
-        #  u'province_pillage_end_datetime': None,
-        #  u'province_revenue': 0,
-        #  u'revenue_level': 0,
-        #  u'round_number': 1,
-        #  u'size': 32,
-        #  u'start_time': u'19:00:00',
-        #  u'turns_till_primetime': 11}
-        self.update(requests.get(
-            'https://ru.wargaming.net/globalmap/game_api/tournament_info?alias=%s' % province_id).json())
-        try:
-            province = Province.objects.get(province_id=self['province_id'], front__front_id=self['front_id'])
-        except Province.DoesNotExist:
-            return
-
-        arena_id = province.arena_id
-        owner = self['owner']
-        if owner:
-            update_clan_province_stat(arena_id, **owner)
-
-        for clan_data in self.clans_info.values():
-            update_clan_province_stat(arena_id, **clan_data)
-
-    @property
-    def clans_info(self):
-        clans = {}
-        for battle in self['battles']:
-            if 'first_competitor' in battle and battle['first_competitor']:
-                clans[battle['first_competitor']['id']] = battle['first_competitor']
-            else:
-                # DEBUG ISSUE
-                mail_admins("NO FIRST COMPETITOR IN BATTLE: province %s" % self['province_id'],
-                            json.dumps(self, indent=4, sort_keys=True))
-            if 'second_competitor' in battle and battle['second_competitor']:
-                clans[battle['second_competitor']['id']] = battle['second_competitor']
-        if isinstance(self['pretenders'], list):
-            for clan in self['pretenders']:
-                clans[clan['id']] = clan
-        if self['owner'] and self['owner']['id'] in clans:
-            del clans[self['owner']['id']]
-        return clans
-
-    @property
-    def pretenders(self):
-        return self.clans_info.keys()
-
-
-def update_clan_province_stat(arena_id, tag, name, elo_rating_6, elo_rating_8, elo_rating_10,
-                              arena_wins_percent, arena_battles_count, **kwargs):
-        pk = kwargs.get('id') or kwargs['clan_id']
-
-        clan = Clan.objects.update_or_create(id=pk, defaults={
-            'tag': tag, 'title': name,
-            'elo_6': elo_rating_6, 'elo_8': elo_rating_8,
-            'elo_10': elo_rating_10,
-        })[0]
-        ClanArenaStat.objects.update_or_create(clan=clan, arena_id=arena_id, defaults={
-            'wins_percent': arena_wins_percent,
-            'battles_count': arena_battles_count,
         })
 
 
@@ -181,7 +91,7 @@ def update_province(province, province_data):
             clan_b_id = active_battle['clan_b']['clan_id']
             clans[clan_a_id] = Clan.objects.get_or_create(pk=clan_a_id)[0]
             clans[clan_b_id] = Clan.objects.get_or_create(pk=clan_b_id)[0]
-        for clan in TournamentInfo(province_id).pretenders:
+        for clan in province.tournament_info.pretenders:
             clans[clan['id']] = Clan.objects.get_or_create(pk=clan['id'])[0]
 
     dt = battles_start_at
@@ -273,7 +183,7 @@ def update_province(province, province_data):
                              province_id, ' '.join([repr(c) for c in clans.values()]))
             else:
                 logger.debug("no more clans assaulting province '%s', cleared clans", province_id)
-                if assault.datetime > datetime.now(tz=pytz.UTC):
+                if assault.datetime > utc_now():
                     logger.debug("update_province: removed assault for province %s", province_id)
                     assault.delete()
                 else:
@@ -337,16 +247,6 @@ def get_provinces_data(provinces):
                 for data in result_list:
                     province_id = data['province_id']
                     provinces_data[map_id_model[province_id]] = data
-
-    # query unofficial province_info
-    # for province, data in provinces_data.items():
-    #     province_id = province.province_id
-    #     ti = TournamentInfo(province_id)
-    #     if provinces_data[province]['competitors'] != ti.pretenders:
-    #         # logger.warn('Official api and WG PAPI returned different number of competitors')
-    #         provinces_data[province]['competitors'] = list(set(
-    #             provinces_data[province]['competitors'] + ti.pretenders
-    #         ))
 
     return provinces_data
 
