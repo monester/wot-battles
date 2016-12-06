@@ -123,17 +123,17 @@ refresh_clan = function (force_update) {
                     time = new Date(battle['planned_start_at']);
                 }
 
-                if(! province_owner) {
-                    if(total_battles - t > 1) {
-                        title = "1/" + Math.pow(2, total_battles - t - 1);
-                    } else {
+                if(province_owner) {
+                    if (total_battles - t > 2) {
+                        title = "1/" + Math.pow(2, total_battles - t - 2);
+                    } else if (total_battles - t == 2) {
                         title = "Final";
+                    } else {
+                        title = "Owner";
                     }
                 } else {
-                    if(total_battles - t > 2) {
-                        title = "1/" + Math.pow(2, total_battles - t - 2);
-                    } else if(total_battles - t == 2) {
-                        title = "Final";
+                    if (total_battles - t > 1) {
+                        title = "1/" + Math.pow(2, total_battles - t - 1);
                     } else {
                         title = "Owner";
                     }
