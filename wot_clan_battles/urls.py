@@ -19,8 +19,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from global_map.views import ListBattles, ListBattlesJson, TagView
+from wot_clan_battles.views_auth import auth_callback, auth_login
 
 urlpatterns = [
+    url(r'^auth/login/$', auth_login, name='auth_login'),
+    url(r'^auth/callback/$', auth_callback, name='auth_callback'),
     url(r'^$', ListBattles.as_view()),
     url(r'^(?P<clan_id>\d+)/$', ListBattles.as_view()),
     url(r'^(?P<clan_tag>[A-Z0-9_\-]{2,5})/$', ListBattles.as_view()),

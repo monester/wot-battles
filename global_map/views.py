@@ -1,13 +1,13 @@
-from datetime import datetime, timedelta, date as datetime_date
 import logging
-
-from django.views.generic import TemplateView, View
-from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse, QueryDict
-from django.db.models import Count, Q
+from datetime import datetime, timedelta, date as datetime_date
 
 import wargaming
+from django.conf import settings
+from django.db.models import Q
+from django.http import JsonResponse, QueryDict
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView, View
+
 from global_map.models import Clan, ProvinceTag, ProvinceAssault
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class ListBattles(TemplateView):
         context = super(ListBattles, self).get_context_data(**kwargs)
         if 'clan_tag' in kwargs:
             try:
-                context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
+                clan = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0]
             except Clan.MultipleObjectsReturned:
                 duplicates = Clan.objects.filter(tag=kwargs['clan_tag'])
                 logger.critical('Returned multiple records for same clan tag %s: IDs: %s. Forcing to update',
@@ -53,9 +53,15 @@ class ListBattles(TemplateView):
                                 exc_info=True)
                 for c in duplicates:
                     c.force_update()
-                context['clan_id'] = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0].pk
+                clan = Clan.objects.get_or_create(tag=kwargs['clan_tag'])[0]
+        elif 'clan_id' in kwargs:
+            clan = Clan.objects.get_or_create(pk=int(kwargs['clan_id']))[0]
         else:
-            context['clan_id'] = kwargs.get('clan_id', '35039')
+            if self.request.wg_user and self.request.wg_user['clan']:
+                clan = self.request.wg_user['clan']
+            else:
+                clan = Clan.objects.get_or_create(pk=35039)[0]
+        context['clan'] = clan
 
         context['dates'] = [
             i.date.strftime('%Y-%m-%d')
