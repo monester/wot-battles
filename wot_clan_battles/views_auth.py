@@ -17,7 +17,6 @@ def auth_callback(request):
     result = oidconsumer.complete(request.GET, url)
     if result.status == consumer.SUCCESS:
         identifier = result.getDisplayIdentifier()
-        print identifier
         user_id, username = six.moves.urllib_parse.urlparse(identifier).path.split('/')[2].split('-')
         request.session['user_id'] = user_id
         request.session['username'] = username
