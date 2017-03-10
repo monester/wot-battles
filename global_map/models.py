@@ -164,6 +164,14 @@ class Clan(models.Model):
         return data
 
 
+class Player(models.Model):
+    nickname = models.CharField(max_length=255)
+    clan = models.ForeignKey(Clan, null=True)
+    email = models.CharField(null=True, max_length=255)
+    password = models.CharField(null=True, max_length=255)
+    system_account = models.BooleanField(default=False)
+
+
 class Front(models.Model):
     front_id = models.CharField(max_length=254)
     max_vehicle_level = models.IntegerField()
@@ -224,6 +232,8 @@ class ClanArenaStat(models.Model):
     arena_id = models.CharField(max_length=255)
     wins_percent = models.FloatField()
     battles_count = models.IntegerField()
+    # level = models.IntegerField()
+    # base = models.IntegerField(choices=((1, 'Fist base'), (2, 'Second Base')))
 
     def as_json(self):
         return {

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block container-fluid %}
+  <h3>Update WG globalmap cookie</h3>
+  <p>To get cookies open <a href="https://ru.wargaming.net/globalmap/" target="_blank">https://ru.wargaming.net/globalmap/</a>
+    press <kbd>F12</kbd>, select Network tab, select <kbd>GET /globalmap/</kbd> request
+    and in context menu select copy request headers.</p>
+  <form class="form" method="post">
+    {% csrf_token %}
+    <div class="form-group">
+       <label for="id_globalmap_cookie">Cookies</label>
+       <textarea name="globalmap_cookie" class="form-control" id="id_globalmap_cookie"></textarea>
+    </div>
+    <button type="submit">Update</button>
+  </form>
+{% endblock %}

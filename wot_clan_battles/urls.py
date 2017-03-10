@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 
-from global_map.views import ListBattles, ListBattlesJson, TagView
+from global_map.views import ListBattles, ListBattlesJson, TagView, UpdateGMCookieView, UserProfile
 from wot_clan_battles.views_auth import auth_callback, auth_login
 
 urlpatterns = [
@@ -30,5 +30,7 @@ urlpatterns = [
     url(r'^tag/', TagView.as_view()),
     url(r'^battles/$', ListBattlesJson.as_view()),
     url(r'^battles/(?P<date>\d{4}-\d{2}-\d{2})/$', ListBattlesJson.as_view()),
+    url(r'^user/profile/', UserProfile.as_view(), name='user_profile'),
+    url(r'^globalmap/cookie/$', UpdateGMCookieView.as_view(), name='globalmap_cookie'),
     url(r'^admin/', admin.site.urls),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

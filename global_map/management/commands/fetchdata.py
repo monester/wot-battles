@@ -304,6 +304,23 @@ def update_winners_from_log(clan):
                 pb_index += 1
 
 
+def update_tactical_data(clan):
+    if clan.extra.globalmap_cookie:
+        data = requests.get('https://ru.wargaming.net/globalmap/game_api/wot/clan_tactical_data', headers={
+            'cookie': clan.extra.globalmap_cookie,
+        }).json()['data']
+        for province_data in data:
+            division = province_data['division']
+            if division:
+                province = Province.objects.get_or_create(
+                    province_id=data['alias'],
+                    front_id=division['front_id'],
+                )[0]
+
+
+
+
+
 def update_clan(clan_id):
     clan = Clan.objects.get_or_create(pk=clan_id)[0]
     province_ids = {}
@@ -340,6 +357,7 @@ def update_clan(clan_id):
         update_province(province, data)
 
     update_winners_from_log(clan)
+    # update_tactical_data(clan)
 
 
 class Command(BaseCommand):

@@ -6,9 +6,9 @@ from django.conf import settings
 from django.db.models import Q
 from django.http import JsonResponse, QueryDict
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import TemplateView, View
+from django.views.generic import TemplateView, View, UpdateView
 
-from global_map.models import Clan, ProvinceTag, ProvinceAssault
+from global_map.models import Clan, ProvinceTag, ProvinceAssault, ClanExtra
 
 logger = logging.getLogger(__name__)
 wot = wargaming.WoT(settings.WARGAMING_KEY, language='ru', region='ru')
@@ -124,3 +124,18 @@ class ListBattlesJson(View):
                                v['province_info']['province_id'])
             ),
         })
+
+
+class UserProfile(TemplateView):
+    template_name = 'user_profile.html'
+
+class UpdateGMCookieView(UpdateView):
+    model = ClanExtra
+    fields = ['globalmap_cookie']
+    template_name = 'globalmap_cookie.html'
+    success_url = '/'
+
+    def get_object(self, queryset=None):
+        clan = self.request.wg_user['clan']
+        if clan:
+            return ClanExtra.objects.get_or_create(clan=clan)[0]
