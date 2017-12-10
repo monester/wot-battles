@@ -12,6 +12,11 @@ class Command(BaseCommand):
     help = 'Save map to cache'
 
     def handle(self, *args, **options):
+        # check global map status
+        globalmap_info = wot.globalmap.info()
+        if globalmap_info['state'] == 'frozen':
+            return
+
         clan_id = 35039
 
         province_ids = {}
